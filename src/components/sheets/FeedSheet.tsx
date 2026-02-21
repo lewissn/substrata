@@ -48,7 +48,7 @@ export default function FeedSheet({
           <button
             onClick={onSearchArea}
             disabled={loading}
-            className="px-3 py-2 rounded-xl border border-[rgba(var(--accent),0.32)] bg-[rgba(var(--accent),0.12)] text-zinc-50 text-[11px] font-semibold transition disabled:opacity-50 min-h-[36px]"
+            className="px-3 py-2 rounded-xl border border-[rgba(44,111,116,0.50)] bg-[#1F5A5C] hover:bg-[#2C6F74] text-zinc-50 text-[11px] font-semibold transition disabled:opacity-50 min-h-[36px]"
           >
             {loading ? "..." : "Search area"}
           </button>

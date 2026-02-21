@@ -20,6 +20,18 @@ function maToSlider(ma: number): number {
   return SLIDER_MAX * Math.pow(ma / MA_MAX, 1 / 3);
 }
 
+/** Find the nearest preset description by logarithmic slider distance. */
+function nearestPreset(ma: number) {
+  const current = maToSlider(ma);
+  let best = MA_PRESETS[0];
+  let bestDist = Infinity;
+  for (const p of MA_PRESETS) {
+    const dist = Math.abs(maToSlider(p.ma) - current);
+    if (dist < bestDist) { bestDist = dist; best = p; }
+  }
+  return best;
+}
+
 export default function MaSlider({
   ma,
   onMaChange,
@@ -28,6 +40,8 @@ export default function MaSlider({
   onMaChange: (ma: number) => void;
 }) {
   const sliderVal = maToSlider(ma);
+  const activePreset = MA_PRESETS.find((p) => Math.abs(ma - p.ma) < 0.001) ?? null;
+  const contextPreset = ma > 0 ? nearestPreset(ma) : null;
 
   return (
     <div>
@@ -44,7 +58,7 @@ export default function MaSlider({
             const v = Number(e.target.value);
             onMaChange(sliderToMa(v));
           }}
-          className="flex-1 h-1 accent-[rgb(var(--accent))] cursor-pointer slider-deep"
+          className="flex-1 h-1 accent-[#1F5A5C] cursor-pointer slider-deep"
         />
         <span className="text-[10px] text-zinc-600 w-14">{formatMa(MA_MAX)}</span>
       </div>
@@ -55,6 +69,13 @@ export default function MaSlider({
         {ma > 0 && <span className="text-[10px] text-zinc-600 ml-1">ago</span>}
       </div>
 
+      {/* Nearest preset description — shown beneath the value, above sea level */}
+      {contextPreset && ma > 0 && (
+        <p className="text-[11px] text-zinc-500 italic text-center mt-1 leading-snug">
+          {contextPreset.description}
+        </p>
+      )}
+
       {/* Presets */}
       <div className="flex flex-wrap gap-1 mt-2.5">
         {MA_PRESETS.map((p) => (
@@ -64,8 +85,8 @@ export default function MaSlider({
             title={p.description}
             className={[
               "px-2 py-1 rounded-md text-[10px] border transition-all duration-150",
-              Math.abs(ma - p.ma) < 0.001
-                ? "bg-[rgba(var(--accent),0.16)] border-[rgba(var(--accent),0.32)] text-zinc-50 font-medium"
+              activePreset?.label === p.label
+                ? "bg-[rgba(31,90,92,0.22)] border-[rgba(44,111,116,0.42)] text-zinc-50 font-medium"
                 : "bg-[rgba(255,255,255,0.02)] border-[rgba(255,255,255,0.06)] text-zinc-500 hover:text-zinc-300 hover:bg-[rgba(255,255,255,0.05)]",
             ].join(" ")}
           >

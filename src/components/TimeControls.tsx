@@ -73,15 +73,15 @@ export default function TimeControls({
           className={[
             "w-full rounded-xl border px-3 py-2.5 text-left transition-all duration-200",
             deepTimeEnabled
-              ? "bg-[rgba(var(--accent),0.16)] border-[rgba(var(--accent),0.45)] shadow-[0_0_12px_rgba(var(--accent),0.12)]"
-              : "bg-[rgba(var(--accent),0.06)] border-[rgba(var(--accent),0.22)] hover:bg-[rgba(var(--accent),0.10)] hover:border-[rgba(var(--accent),0.35)]",
+              ? "bg-[rgba(31,90,92,0.20)] border-[rgba(44,111,116,0.45)] shadow-[0_0_12px_rgba(44,111,116,0.15)]"
+              : "bg-[rgba(31,90,92,0.06)] border-[rgba(44,111,116,0.20)] hover:bg-[rgba(31,90,92,0.12)] hover:border-[rgba(44,111,116,0.35)]",
           ].join(" ")}
         >
           <div className="flex items-center justify-between">
             <span
               className={[
                 "text-[12px] font-semibold tracking-tight",
-                deepTimeEnabled ? "text-[rgba(var(--accent),1)]" : "text-[rgba(var(--accent),0.80)]",
+                deepTimeEnabled ? "text-[#89CDD1]" : "text-zinc-500",
               ].join(" ")}
             >
               Deep Time (Ma)
@@ -90,7 +90,7 @@ export default function TimeControls({
               className={[
                 "text-[9px] uppercase tracking-widest font-medium px-1.5 py-0.5 rounded-md border",
                 deepTimeEnabled
-                  ? "text-[rgba(var(--accent),0.90)] border-[rgba(var(--accent),0.35)] bg-[rgba(var(--accent),0.12)]"
+                  ? "text-[#89CDD1] border-[rgba(44,111,116,0.35)] bg-[rgba(31,90,92,0.14)]"
                   : "text-zinc-500 border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)]",
               ].join(" ")}
             >
@@ -132,7 +132,7 @@ export default function TimeControls({
             className={[
               "text-[10px] px-2.5 py-1 rounded-md border transition-all duration-150",
               overlayBoost
-                ? "bg-[rgba(var(--accent),0.14)] border-[rgba(var(--accent),0.30)] text-zinc-200 font-medium"
+                ? "bg-[rgba(31,90,92,0.20)] border-[rgba(44,111,116,0.40)] text-zinc-200 font-medium"
                 : "bg-[rgba(255,255,255,0.02)] border-[rgba(255,255,255,0.06)] text-zinc-600 hover:text-zinc-400",
             ].join(" ")}
           >
@@ -151,7 +151,7 @@ export default function TimeControls({
               className={[
                 "text-[10px] px-2.5 py-1 rounded-md border transition-all duration-150",
                 paleoEnabled
-                  ? "bg-[rgba(var(--accent),0.14)] border-[rgba(var(--accent),0.30)] text-zinc-200 font-medium"
+                  ? "bg-[rgba(31,90,92,0.20)] border-[rgba(44,111,116,0.40)] text-zinc-200 font-medium"
                   : "bg-[rgba(255,255,255,0.02)] border-[rgba(255,255,255,0.06)] text-zinc-600 hover:text-zinc-400",
               ].join(" ")}
             >
@@ -191,7 +191,7 @@ export default function TimeControls({
                 className={[
                   "flex-1 text-[10px] px-1 py-1.5 rounded-md border transition-all duration-150 font-medium",
                   mapTheme === value
-                    ? "bg-[rgba(var(--accent),0.14)] border-[rgba(var(--accent),0.30)] text-zinc-200"
+                    ? "bg-[rgba(31,90,92,0.20)] border-[rgba(44,111,116,0.40)] text-zinc-200"
                     : "bg-[rgba(255,255,255,0.02)] border-[rgba(255,255,255,0.06)] text-zinc-500 hover:text-zinc-300 hover:border-[rgba(255,255,255,0.12)]",
                 ].join(" ")}
               >

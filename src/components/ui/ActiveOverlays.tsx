@@ -31,8 +31,8 @@ export function ActiveOverlays({
   if (!isLGM && !hasSeaLevelShift && !showPaleo) return null;
 
   return (
-    <div className="absolute top-3 right-3 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(9,9,11,0.92)] backdrop-blur-md px-3 py-2.5 z-10 space-y-1.5 pointer-events-none">
-      <div className="text-[9px] uppercase tracking-widest text-zinc-600 font-medium">
+    <div className="absolute top-3 right-3 rounded-xl border border-[rgba(44,111,116,0.22)] bg-[rgba(9,9,11,0.92)] backdrop-blur-md px-3 py-2.5 z-10 space-y-1.5 pointer-events-none">
+      <div className="text-[9px] uppercase tracking-widest text-[#89CDD1]/60 font-medium">
         Active{overlayBoost ? " (boosted)" : ""}
       </div>
 
