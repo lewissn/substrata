@@ -26,6 +26,7 @@ type Props = {
   activeEra?: Era | null;
   deepTimeEnabled?: boolean;
   minimalLabels?: boolean;
+  interactionEnabled?: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -233,6 +234,7 @@ export default function Map({
   activeEra = null,
   deepTimeEnabled = false,
   minimalLabels = false,
+  interactionEnabled = true,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -717,6 +719,26 @@ export default function Map({
     if (!map) return;
     map.flyTo({ center, offset: [0, focusOffsetPx], essential: true });
   }, [center, focusOffsetPx]);
+
+  // Map interaction control (for mobile sheet overlay)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (interactionEnabled) {
+      map.dragPan.enable();
+      map.scrollZoom.enable();
+      map.touchZoomRotate.enable();
+      map.doubleClickZoom.enable();
+      map.touchPitch?.enable();
+    } else {
+      map.dragPan.disable();
+      map.scrollZoom.disable();
+      map.touchZoomRotate.disable();
+      map.doubleClickZoom.disable();
+      map.touchPitch?.disable();
+    }
+  }, [interactionEnabled]);
 
   // =========================================================================
   // Atmospheric tint class
