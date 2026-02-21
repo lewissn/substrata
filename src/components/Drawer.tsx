@@ -2,8 +2,9 @@
 
 import type { PlaceCard } from "@/domain/placeCard";
 import { ERA_LABELS } from "@/domain/era";
-import { formatTimeSpan } from "@/domain/time";
+import { formatTimeSpan, formatMa } from "@/domain/time";
 import { getNarrativeLines } from "@/domain/narrative";
+import { seaLevelAtMa, formatSeaLevel } from "@/domain/lgm";
 
 const ERA_BADGE_STYLES: Record<string, string> = {
   geological: "text-red-400/80",
@@ -55,6 +56,8 @@ export default function Drawer({
 
   const timeDisplay = formatTimeSpan(card.time);
   const attribution = SOURCE_ATTRS[card.source] ?? "";
+  const activeMa = ma != null && ma > 0 ? ma : null;
+  const seaLevel = activeMa ? seaLevelAtMa(activeMa) : null;
 
   return (
     <div className="absolute bottom-5 left-5 right-5 md:right-auto md:w-[520px] rounded-2xl border border-[rgba(255,255,255,0.09)] bg-[rgba(9,9,11,0.97)] backdrop-blur-xl shadow-drawer animate-drawer-in z-20">
@@ -69,7 +72,7 @@ export default function Drawer({
       <div className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            {/* Narrative lines ("This place was…") */}
+            {/* Narrative lines ("This place was...") */}
             {narrativeLines.length > 0 && (
               <div className="mb-3 space-y-1">
                 {narrativeLines.map((line, i) => (
@@ -113,6 +116,30 @@ export default function Drawer({
             <div className="text-[13px] text-zinc-300 leading-relaxed mt-3">
               {card.summary ?? "No summary available."}
             </div>
+
+            {/* Paleocoordinate + sea level context */}
+            {activeMa && (paleoLat != null || seaLevel != null) && (
+              <div className="mt-3 pt-2 border-t border-[rgba(255,255,255,0.05)] space-y-1.5">
+                <div className="text-[10px] uppercase tracking-widest text-zinc-700 font-medium">
+                  At {formatMa(activeMa)}
+                </div>
+                {paleoLat != null && paleoLng != null && (
+                  <div className="flex items-center gap-2 text-[11px] text-zinc-500">
+                    <span className="text-zinc-600">Paleoposition:</span>
+                    <span>
+                      {Math.abs(paleoLat).toFixed(1)}° {paleoLat >= 0 ? "N" : "S"},{" "}
+                      {Math.abs(paleoLng).toFixed(1)}° {paleoLng >= 0 ? "E" : "W"}
+                    </span>
+                  </div>
+                )}
+                {seaLevel != null && (
+                  <div className="flex items-center gap-2 text-[11px] text-zinc-500">
+                    <span className="text-zinc-600">Sea level:</span>
+                    <span>{formatSeaLevel(seaLevel)}</span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Link */}
             {card.url && (

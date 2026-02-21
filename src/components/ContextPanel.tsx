@@ -1,8 +1,9 @@
 "use client";
 
 import { periodForMa, type GeoPeriod } from "@/domain/periods";
-import { eraFromMa, formatMa } from "@/domain/time";
+import { formatMa } from "@/domain/time";
 import { ERA_LABELS } from "@/domain/era";
+import { seaLevelAtMa, formatSeaLevel } from "@/domain/lgm";
 import type { Era } from "@/domain/placeCard";
 
 export default function ContextPanel({
@@ -53,6 +54,9 @@ function PeriodContext({
   ma: number;
   paleoData?: { paleoLat?: number; paleoLng?: number; climateBand?: string } | null;
 }) {
+  const seaLevel = seaLevelAtMa(ma);
+  const isLGM = ma >= 0.015 && ma <= 0.03;
+
   return (
     <div className="px-4 py-3 border-b border-[rgba(255,255,255,0.05)] space-y-2 animate-context-in">
       {/* Period name + time */}
@@ -80,10 +84,21 @@ function PeriodContext({
         <span>Sea level {period.seaLevel}</span>
       </div>
 
+      {/* Sea level indicator */}
+      <SeaLevelBar seaLevel={seaLevel} isLGM={isLGM} />
+
       {/* Life */}
       <p className="text-[10.5px] text-zinc-500 italic">
         {period.life}
       </p>
+
+      {/* LGM special context */}
+      {isLGM && (
+        <div className="text-[10.5px] text-sky-400/70 pt-1 border-t border-[rgba(255,255,255,0.04)]">
+          <span className="font-medium">Ice Age active</span> — continental ice sheets shown on map.
+          Land bridges exposed. Doggerland, Beringia, Sundaland connected.
+        </div>
+      )}
 
       {/* Paleolatitude context */}
       {paleoData?.paleoLat != null && (
@@ -95,6 +110,50 @@ function PeriodContext({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Sea level indicator bar
+// ---------------------------------------------------------------------------
+
+function SeaLevelBar({ seaLevel, isLGM }: { seaLevel: number; isLGM: boolean }) {
+  // Normalize: -130m to +260m → 0% to 100%
+  const min = -130;
+  const max = 260;
+  const range = max - min;
+  const present = ((0 - min) / range) * 100;
+  const level = ((seaLevel - min) / range) * 100;
+
+  const barColor = seaLevel < 0
+    ? isLGM ? "rgba(120,180,220,0.6)" : "rgba(100,160,200,0.5)"
+    : "rgba(100,180,140,0.5)";
+
+  return (
+    <div className="pt-1">
+      <div className="flex items-center gap-2">
+        <span className="text-[9px] text-zinc-600 w-[52px] text-right shrink-0">Sea level</span>
+        <div className="flex-1 relative h-[6px] rounded-full bg-[rgba(255,255,255,0.05)] overflow-hidden">
+          {/* Present marker */}
+          <div
+            className="absolute top-0 h-full w-[1px] bg-zinc-600 z-10"
+            style={{ left: `${present}%` }}
+          />
+          {/* Level indicator */}
+          <div
+            className="absolute top-0 h-full rounded-full transition-all duration-500"
+            style={{
+              left: `${Math.min(level, present)}%`,
+              width: `${Math.abs(level - present)}%`,
+              backgroundColor: barColor,
+            }}
+          />
+        </div>
+        <span className="text-[9px] text-zinc-500 w-[68px] shrink-0">
+          {formatSeaLevel(seaLevel)}
+        </span>
+      </div>
     </div>
   );
 }

@@ -91,6 +91,11 @@ export default function Home() {
   const [paleoData, setPaleoData] = useState<ReconstructionResult | null>(null);
   const paleoFetchRef = useRef<AbortController | null>(null);
 
+  // --- Paleocoastline data ---
+  const [coastlineGeoJSON, setCoastlineGeoJSON] = useState<GeoJSON.FeatureCollection | null>(null);
+  const coastlineFetchRef = useRef<AbortController | null>(null);
+  const lastCoastlineMaRef = useRef<number>(0);
+
   // Effective center for search
   const activeCenter = useMemo<[number, number]>(() => mapCenter ?? center, [mapCenter, center]);
 
@@ -139,6 +144,36 @@ export default function Home() {
     }
   }, []);
 
+  // --- GPlates coastline fetch ---
+  const fetchCoastlines = useCallback(async (maVal: number) => {
+    if (coastlineFetchRef.current) coastlineFetchRef.current.abort();
+    if (maVal <= 0) {
+      setCoastlineGeoJSON(null);
+      lastCoastlineMaRef.current = 0;
+      return;
+    }
+
+    // Only re-fetch if Ma changed significantly (coastlines are rounded to 5Ma on server)
+    const roundedMa = maVal < 1 ? Math.round(maVal * 100) / 100 : Math.round(maVal / 5) * 5;
+    if (roundedMa === lastCoastlineMaRef.current) return;
+
+    const controller = new AbortController();
+    coastlineFetchRef.current = controller;
+    try {
+      const res = await fetch(
+        `/api/coastlines?ma=${maVal}`,
+        { signal: controller.signal }
+      );
+      const data = await res.json();
+      if (!controller.signal.aborted) {
+        setCoastlineGeoJSON(data.geojson ?? null);
+        lastCoastlineMaRef.current = roundedMa;
+      }
+    } catch {
+      // Abort or network error — ignore
+    }
+  }, []);
+
   // Fetch paleo data when Ma changes or center changes (debounced)
   useEffect(() => {
     if (!deepTimeEnabled || ma <= 0) {
@@ -151,6 +186,24 @@ export default function Home() {
     }, 600);
     return () => clearTimeout(timer);
   }, [deepTimeEnabled, ma, activeCenter, fetchPaleoData]);
+
+  // Fetch coastlines when Ma changes (debounced, only for significant values)
+  useEffect(() => {
+    if (!deepTimeEnabled || ma <= 0) {
+      setCoastlineGeoJSON(null);
+      lastCoastlineMaRef.current = 0;
+      return;
+    }
+    // Only fetch coastlines for Ma > 1 (meaningful plate reconstructions)
+    if (ma < 1) {
+      setCoastlineGeoJSON(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      fetchCoastlines(ma);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [deepTimeEnabled, ma, fetchCoastlines]);
 
   // --- Handlers ---
   const handleGeocode = async () => {
@@ -284,7 +337,7 @@ export default function Home() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleGeocode(); }}
-            placeholder="Navigate to a place…"
+            placeholder="Navigate to a place..."
             className="w-full px-4 py-2.5 rounded-xl bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] text-zinc-100 text-sm placeholder:text-zinc-600 outline-none focus:ring-2 focus:ring-[rgba(var(--accent),0.30)] focus:border-[rgba(var(--accent),0.30)] transition"
           />
         </div>
@@ -301,7 +354,7 @@ export default function Home() {
           disabled={loading}
           className="px-4 py-2.5 rounded-xl border border-[rgba(var(--accent),0.32)] bg-[rgba(var(--accent),0.12)] hover:bg-[rgba(var(--accent),0.18)] text-zinc-50 text-sm font-semibold transition disabled:opacity-50"
         >
-          {loading ? "Searching…" : "Search area"}
+          {loading ? "Searching..." : "Search area"}
         </button>
       </div>
 
@@ -408,7 +461,13 @@ export default function Home() {
             }}
             focusOffsetPx={200}
             ma={deepTimeEnabled ? ma : 0}
+            coastlineGeoJSON={deepTimeEnabled ? coastlineGeoJSON : null}
           />
+
+          {/* ── Map legend (when overlays active) ── */}
+          {deepTimeEnabled && ma > 0 && (
+            <MapLegend ma={ma} hasCoastlines={!!coastlineGeoJSON} />
+          )}
 
           {/* ── Attribution footer ── */}
           <div className="absolute bottom-1 right-2 text-[8px] text-zinc-700 pointer-events-none z-10">
@@ -428,6 +487,42 @@ export default function Home() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Map legend overlay (shown when deep time overlays are active)
+// ---------------------------------------------------------------------------
+
+function MapLegend({ ma, hasCoastlines }: { ma: number; hasCoastlines: boolean }) {
+  const isLGM = ma >= 0.015 && ma <= 0.03;
+
+  if (!isLGM && !hasCoastlines) return null;
+
+  return (
+    <div className="absolute top-3 right-3 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(9,9,11,0.90)] backdrop-blur-md px-3 py-2.5 z-10 space-y-1.5 pointer-events-none">
+      <div className="text-[9px] uppercase tracking-widest text-zinc-600 font-medium">Overlays</div>
+
+      {isLGM && (
+        <>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: "rgba(180,210,240,0.5)" }} />
+            <span className="text-[10px] text-zinc-400">Ice sheets</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: "rgba(170,150,100,0.4)" }} />
+            <span className="text-[10px] text-zinc-400">Exposed land</span>
+          </div>
+        </>
+      )}
+
+      {hasCoastlines && (
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: "rgba(120,160,100,0.3)", border: "1px solid rgba(120,160,100,0.5)" }} />
+          <span className="text-[10px] text-zinc-400">Paleocoastlines</span>
+        </div>
+      )}
     </div>
   );
 }
