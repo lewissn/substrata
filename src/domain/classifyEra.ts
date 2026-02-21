@@ -70,6 +70,7 @@ const KIND_ERA: Partial<Record<PlaceKind, Era>> = {
   volcano: "geological",
   impact_crater: "geological",
   fault_line: "geological",
+  fossil_occurrence: "geological",
   monument: "modern",
   memorial: "modern",
   attraction: "modern",

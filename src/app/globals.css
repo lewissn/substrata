@@ -39,12 +39,10 @@ body {
 
 /* ── Utilities ── */
 
-/* Feed card drop shadow */
 .shadow-soft {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.30);
 }
 
-/* Drawer elevated shadow */
 .shadow-drawer {
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.06),
@@ -68,6 +66,38 @@ body {
   animation: feedIn 0.25s ease-out both;
 }
 
+/* ── Context panel entrance animation ── */
+@keyframes contextIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-context-in {
+  animation: contextIn 0.3s ease-out both;
+}
+
+/* ── Drawer entrance animation ── */
+@keyframes drawerIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-drawer-in {
+  animation: drawerIn 0.2s ease-out both;
+}
+
 /* ── Mapbox popup override ── */
 .mapboxgl-popup-content {
   background: rgba(14, 14, 18, 0.96) !important;
@@ -80,4 +110,35 @@ body {
 
 .mapboxgl-popup-tip {
   display: none !important;
+}
+
+/* ── Deep Time slider styling ── */
+.slider-deep {
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  outline: none;
+}
+
+.slider-deep::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgb(var(--accent));
+  border: 2px solid rgba(0, 0, 0, 0.30);
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(250, 192, 94, 0.3);
+}
+
+.slider-deep::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgb(var(--accent));
+  border: 2px solid rgba(0, 0, 0, 0.30);
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(250, 192, 94, 0.3);
 }
