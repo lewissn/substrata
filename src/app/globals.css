@@ -199,6 +199,21 @@ body {
   background: linear-gradient(180deg, #0F1C1D 0%, #121A1B 100%);
 }
 
+/* ── Safe-area padding utilities ── */
+/* Use on elements that must avoid the notch / home indicator. */
+
+.safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Standalone-mode indicator: env(safe-area-inset-top) is > 0 when
+   running as an installed PWA behind a notch/status bar.
+   Components can read this to conditionally adjust layout. */
+
 /* ── Bottom sheet / mobile utilities ── */
 
 .sheet-handle {

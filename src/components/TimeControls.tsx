@@ -6,6 +6,7 @@ import EraChips from "./EraChips";
 import MaSlider from "./MaSlider";
 import SeaLevelSlider from "./SeaLevelSlider";
 import { seaLevelAtMa } from "@/domain/lgm";
+import InstallPrompt from "./pwa/InstallPrompt";
 
 // ---------------------------------------------------------------------------
 // Map theme options
@@ -201,6 +202,9 @@ export default function TimeControls({
           </div>
         </div>
       )}
+
+      {/* ── Install prompt — Android/Chrome only, once per session ── */}
+      <InstallPrompt />
     </div>
   );
 }
