@@ -91,27 +91,6 @@ function resolveMode(activeEra: Era | null, deepTimeEnabled: boolean): MapMode {
   return "modern";
 }
 
-function terrainExaggeration(mode: MapMode): number {
-  switch (mode) {
-    case "modern": return 0;
-    case "medieval": return 1.1;
-    case "ancient": return 1.1;
-    case "prehistoric": return 1.15;
-    case "geological": return 1.15;
-    case "deepTime": return 1.2;
-  }
-}
-
-function targetPitch(mode: MapMode): number {
-  switch (mode) {
-    case "modern": return 0;
-    case "medieval": return 0;
-    case "ancient": return 0;
-    case "prehistoric": return 0;
-    case "geological": return 20;
-    case "deepTime": return 35;
-  }
-}
 
 function markerOpacity(mode: MapMode): number {
   switch (mode) {
@@ -421,22 +400,6 @@ export default function Map({
     }
   }
 
-  // ── Terrain ──
-  function setupTerrain(map: mapboxgl.Map, exaggeration: number) {
-    if (exaggeration <= 0) {
-      if (map.getTerrain()) map.setTerrain(null);
-      return;
-    }
-    if (!map.getSource("mapbox-dem")) {
-      map.addSource("mapbox-dem", {
-        type: "raster-dem",
-        url: "mapbox://mapbox.terrain-rgb",
-        tileSize: 512,
-        maxzoom: 14,
-      });
-    }
-    map.setTerrain({ source: "mapbox-dem", exaggeration });
-  }
 
   // ── Bind interaction events ──
   function bindEvents(map: mapboxgl.Map) {
@@ -518,7 +481,6 @@ export default function Map({
       style: initialStyle,
       center,
       zoom: 10,
-      pitch: targetPitch(initialMode),
     });
 
     currentStyleRef.current = initialStyle;
@@ -531,15 +493,10 @@ export default function Map({
 
     map.on("style.load", () => {
       loadedRef.current = true;
-
-      // Terrain MUST be set up before overlay layers are added so that
-      // fill layers render on top of the 3D surface, not behind it.
-      const curMode = modeRef.current;
-      setupTerrain(map, terrainExaggeration(curMode));
-
       initializeMapLayers(map);
       bindEvents(map);
 
+      const curMode = modeRef.current;
       if (shouldSuppressLabels(curMode, minimalLabelsRef.current)) {
         setTimeout(() => suppressLabels(map, true), 100);
       }
@@ -564,13 +521,9 @@ export default function Map({
       // style.load callback re-initializes everything
       map.setStyle(targetStyle);
     } else if (loadedRef.current) {
-      // Same style but mode changed — update terrain + labels
-      setupTerrain(map, terrainExaggeration(mode));
+      // Same style but mode changed — update labels
       suppressLabels(map, shouldSuppressLabels(mode, minimalLabels));
     }
-
-    // Animate pitch smoothly
-    map.easeTo({ pitch: targetPitch(mode), duration: 1200 });
   }, [mode, minimalLabels]);
 
   // =========================================================================
@@ -667,13 +620,11 @@ export default function Map({
       map.scrollZoom.enable();
       map.touchZoomRotate.enable();
       map.doubleClickZoom.enable();
-      map.touchPitch?.enable();
     } else {
       map.dragPan.disable();
       map.scrollZoom.disable();
       map.touchZoomRotate.disable();
       map.doubleClickZoom.disable();
-      map.touchPitch?.disable();
     }
   }, [interactionEnabled]);
 
