@@ -53,7 +53,7 @@ export default function MobileSearchBar({
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           placeholder="Search places..."
-          className="flex-1 min-w-0 bg-transparent py-3.5 text-[15px] text-zinc-100 placeholder:text-zinc-500 outline-none"
+          className="flex-1 min-w-0 bg-transparent py-3.5 text-[16px] text-zinc-100 placeholder:text-zinc-500 outline-none"
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
