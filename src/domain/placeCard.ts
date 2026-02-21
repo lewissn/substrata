@@ -1,4 +1,4 @@
-export type PlaceSource = "wikipedia" | "osm";
+export type PlaceSource = "wikipedia" | "osm" | "future";
 
 export type PlaceKind =
   | "article"
@@ -9,7 +9,19 @@ export type PlaceKind =
   | "memorial"
   | "battlefield"
   | "historic"
-  | "attraction";
+  | "attraction"
+  | "prehistoric_site"
+  | "megalith"
+  | "volcano"
+  | "impact_crater"
+  | "fault_line";
+
+export type Era =
+  | "modern"
+  | "medieval"
+  | "ancient"
+  | "prehistoric"
+  | "geological";
 
 export type PlaceCard = {
   id: string;
@@ -22,4 +34,7 @@ export type PlaceCard = {
   imageUrl?: string;
   url?: string;
   tags?: string[];
+  era: Era;
+  yearStart?: number; // BCE allowed (negative)
+  yearEnd?: number;
 };
