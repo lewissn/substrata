@@ -1,5 +1,6 @@
 import "./globals.css";
 import { Inter } from "next/font/google";
+import type { Viewport } from "next";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -10,6 +11,12 @@ const inter = Inter({
 export const metadata = {
   title: "Substrata",
   description: "Explore the hidden layers of the world.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
