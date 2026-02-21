@@ -5,6 +5,7 @@ import ContextPanel from "@/components/ContextPanel";
 import { Chip, KIND_CHIPS } from "@/components/ui/Chip";
 import type { Era, PlaceCard, PlaceKind, PlaceSource } from "@/domain/placeCard";
 import type { ReconstructionResult } from "@/app/api/reconstruct/route";
+import type { MapTheme } from "@/components/Map";
 
 // ---------------------------------------------------------------------------
 // TimeSheet — era/time controls + filters inside bottom sheet
@@ -33,6 +34,8 @@ export default function TimeSheet({
   hasActiveFilters,
   onResetFilters,
   hasPbdb,
+  mapTheme,
+  onMapThemeChange,
 }: {
   activeEra: Era | null;
   onEraChange: (era: Era | null) => void;
@@ -56,6 +59,8 @@ export default function TimeSheet({
   hasActiveFilters: boolean;
   onResetFilters: () => void;
   hasPbdb: boolean;
+  mapTheme?: MapTheme;
+  onMapThemeChange?: (theme: MapTheme) => void;
 }) {
   return (
     <div className="flex flex-col">
@@ -75,6 +80,8 @@ export default function TimeSheet({
         onPaleoToggle={onPaleoToggle}
         paleoOpacity={paleoOpacity}
         onPaleoOpacityChange={onPaleoOpacityChange}
+        mapTheme={mapTheme}
+        onMapThemeChange={onMapThemeChange}
       />
 
       {/* ── Context panel ── */}

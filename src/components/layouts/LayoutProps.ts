@@ -1,5 +1,6 @@
 import type { Era, PlaceCard, PlaceKind, PlaceSource } from "@/domain/placeCard";
 import type { ReconstructionResult } from "@/app/api/reconstruct/route";
+import type { MapTheme } from "@/components/Map";
 
 /**
  * Shared prop interface for DesktopLayout and MobileLayout.
@@ -55,6 +56,8 @@ export type LayoutProps = {
   // Map
   center: [number, number];
   onCenterChange: (c: [number, number]) => void;
+  mapTheme: MapTheme;
+  onMapThemeChange: (theme: MapTheme) => void;
 
   // Drawer extras
   nearbyFossilCount: number;

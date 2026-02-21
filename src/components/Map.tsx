@@ -16,6 +16,8 @@ mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
 type MapMode = "modern" | "medieval" | "ancient" | "prehistoric" | "geological" | "deepTime";
 
+export type MapTheme = "terrain" | "light" | "dark" | "satellite";
+
 type Props = {
   center: [number, number]; // [lng, lat]
   onCenterChange?: (center: [number, number]) => void;
@@ -33,6 +35,7 @@ type Props = {
   overlayBoost?: boolean;
   paleoEnabled?: boolean;
   paleoOpacity?: number;
+  mapTheme?: MapTheme;
 };
 
 // ---------------------------------------------------------------------------
@@ -57,14 +60,29 @@ const LAYER_EXPOSED_FILL = "lgm-exposed-fill";
 // Style mapping
 // ---------------------------------------------------------------------------
 
+// Default to the colourful outdoors style for all modes — much easier to read
+// than the old greyscale light/dark styles for modern/geological.
 const STYLE_BY_MODE: Record<MapMode, string> = {
-  modern: "mapbox://styles/mapbox/light-v11",
+  modern: "mapbox://styles/mapbox/outdoors-v12",
   medieval: "mapbox://styles/mapbox/outdoors-v12",
   ancient: "mapbox://styles/mapbox/outdoors-v12",
   prehistoric: "mapbox://styles/mapbox/outdoors-v12",
-  geological: "mapbox://styles/mapbox/dark-v11",
+  geological: "mapbox://styles/mapbox/outdoors-v12",
   deepTime: "mapbox://styles/mapbox/outdoors-v12",
 };
+
+const STYLE_BY_THEME: Record<MapTheme, string> = {
+  terrain: "mapbox://styles/mapbox/outdoors-v12",
+  light: "mapbox://styles/mapbox/light-v11",
+  dark: "mapbox://styles/mapbox/dark-v11",
+  satellite: "mapbox://styles/mapbox/satellite-streets-v12",
+};
+
+function resolveStyle(mode: MapMode, theme: MapTheme): string {
+  // User-selected theme overrides per-mode defaults
+  if (theme !== "terrain") return STYLE_BY_THEME[theme];
+  return STYLE_BY_MODE[mode];
+}
 
 // ---------------------------------------------------------------------------
 // Era-based marker colours
@@ -188,6 +206,7 @@ export default function Map({
   overlayBoost = false,
   paleoEnabled = false,
   paleoOpacity = 0.5,
+  mapTheme = "terrain",
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -209,6 +228,7 @@ export default function Map({
   const onCenterChangeRef = useRef(onCenterChange);
   const modeRef = useRef<MapMode>("modern");
   const minimalLabelsRef = useRef(minimalLabels);
+  const mapThemeRef = useRef<MapTheme>(mapTheme);
 
   // Keep refs in sync
   useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
@@ -221,6 +241,7 @@ export default function Map({
   useEffect(() => { paleoEnabledRef.current = paleoEnabled; }, [paleoEnabled]);
   useEffect(() => { paleoOpacityRef.current = paleoOpacity; }, [paleoOpacity]);
   useEffect(() => { minimalLabelsRef.current = minimalLabels; }, [minimalLabels]);
+  useEffect(() => { mapThemeRef.current = mapTheme; }, [mapTheme]);
   useEffect(() => {
     cardByIdRef.current = new globalThis.Map(cards.map((c) => [c.id, c]));
   }, [cards]);
@@ -474,7 +495,7 @@ export default function Map({
     if (!containerRef.current) return;
 
     const initialMode = resolveMode(activeEra, deepTimeEnabled);
-    const initialStyle = STYLE_BY_MODE[initialMode];
+    const initialStyle = resolveStyle(initialMode, mapThemeRef.current);
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
@@ -513,7 +534,7 @@ export default function Map({
     const map = mapRef.current;
     if (!map) return;
 
-    const targetStyle = STYLE_BY_MODE[mode];
+    const targetStyle = resolveStyle(mode, mapThemeRef.current);
 
     if (targetStyle !== currentStyleRef.current) {
       loadedRef.current = false;
@@ -524,7 +545,7 @@ export default function Map({
       // Same style but mode changed — update labels
       suppressLabels(map, shouldSuppressLabels(mode, minimalLabels));
     }
-  }, [mode, minimalLabels]);
+  }, [mode, minimalLabels, mapTheme]);
 
   // =========================================================================
   // Reactive updates

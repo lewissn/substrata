@@ -30,6 +30,7 @@ export default function DesktopLayout(props: LayoutProps) {
     paleoOpacity, onPaleoOpacityChange,
     paleoData, coastlineGeoJSON,
     center, onCenterChange,
+    mapTheme, onMapThemeChange,
     nearbyFossilCount, onSurpriseMe,
   } = props;
 
@@ -94,6 +95,8 @@ export default function DesktopLayout(props: LayoutProps) {
             onPaleoToggle={onPaleoToggle}
             paleoOpacity={paleoOpacity}
             onPaleoOpacityChange={onPaleoOpacityChange}
+            mapTheme={mapTheme}
+            onMapThemeChange={onMapThemeChange}
           />
 
           {/* ── Context panel ── */}
@@ -175,6 +178,7 @@ export default function DesktopLayout(props: LayoutProps) {
             overlayBoost={overlayBoost}
             paleoEnabled={deepTimeEnabled ? paleoEnabled : false}
             paleoOpacity={paleoOpacity}
+            mapTheme={mapTheme}
           />
 
           {/* ── Active overlays indicator ── */}

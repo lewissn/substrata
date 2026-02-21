@@ -1,10 +1,22 @@
 "use client";
 
 import type { Era } from "@/domain/placeCard";
+import type { MapTheme } from "@/components/Map";
 import EraChips from "./EraChips";
 import MaSlider from "./MaSlider";
 import SeaLevelSlider from "./SeaLevelSlider";
 import { seaLevelAtMa } from "@/domain/lgm";
+
+// ---------------------------------------------------------------------------
+// Map theme options
+// ---------------------------------------------------------------------------
+
+const MAP_THEMES: { value: MapTheme; label: string }[] = [
+  { value: "terrain", label: "Terrain" },
+  { value: "satellite", label: "Satellite" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+];
 
 export default function TimeControls({
   activeEra,
@@ -21,6 +33,8 @@ export default function TimeControls({
   onPaleoToggle,
   paleoOpacity = 0.5,
   onPaleoOpacityChange,
+  mapTheme = "terrain",
+  onMapThemeChange,
 }: {
   activeEra: Era | null;
   onEraChange: (era: Era | null) => void;
@@ -36,6 +50,8 @@ export default function TimeControls({
   onPaleoToggle?: () => void;
   paleoOpacity?: number;
   onPaleoOpacityChange?: (v: number) => void;
+  mapTheme?: MapTheme;
+  onMapThemeChange?: (theme: MapTheme) => void;
 }) {
   return (
     <div className="border-b border-[rgba(255,255,255,0.05)]">
@@ -43,22 +59,50 @@ export default function TimeControls({
       <div className="px-4 pt-3 pb-2">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[10px] uppercase tracking-widest text-zinc-700 font-medium">Era</span>
-          <button
-            onClick={onDeepTimeToggle}
-            className={[
-              "text-[10px] px-2.5 py-1 rounded-md border transition-all duration-150",
-              deepTimeEnabled
-                ? "bg-[rgba(var(--accent),0.14)] border-[rgba(var(--accent),0.30)] text-zinc-200 font-medium"
-                : "bg-[rgba(255,255,255,0.02)] border-[rgba(255,255,255,0.06)] text-zinc-600 hover:text-zinc-400",
-            ].join(" ")}
-          >
-            Deep Time (Ma)
-          </button>
         </div>
 
         {!deepTimeEnabled && (
           <EraChips activeEra={activeEra} onEraChange={onEraChange} />
         )}
+      </div>
+
+      {/* Deep Time — prominent call-to-action block */}
+      <div className="px-4 pb-3">
+        <button
+          onClick={onDeepTimeToggle}
+          className={[
+            "w-full rounded-xl border px-3 py-2.5 text-left transition-all duration-200",
+            deepTimeEnabled
+              ? "bg-[rgba(var(--accent),0.16)] border-[rgba(var(--accent),0.45)] shadow-[0_0_12px_rgba(var(--accent),0.12)]"
+              : "bg-[rgba(var(--accent),0.06)] border-[rgba(var(--accent),0.22)] hover:bg-[rgba(var(--accent),0.10)] hover:border-[rgba(var(--accent),0.35)]",
+          ].join(" ")}
+        >
+          <div className="flex items-center justify-between">
+            <span
+              className={[
+                "text-[12px] font-semibold tracking-tight",
+                deepTimeEnabled ? "text-[rgba(var(--accent),1)]" : "text-[rgba(var(--accent),0.80)]",
+              ].join(" ")}
+            >
+              Deep Time (Ma)
+            </span>
+            <span
+              className={[
+                "text-[9px] uppercase tracking-widest font-medium px-1.5 py-0.5 rounded-md border",
+                deepTimeEnabled
+                  ? "text-[rgba(var(--accent),0.90)] border-[rgba(var(--accent),0.35)] bg-[rgba(var(--accent),0.12)]"
+                  : "text-zinc-500 border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)]",
+              ].join(" ")}
+            >
+              {deepTimeEnabled ? "Active" : "Explore"}
+            </span>
+          </div>
+          <p className="text-[10px] text-zinc-500 mt-0.5 leading-snug">
+            {deepTimeEnabled
+              ? "Drag the slider to travel through geological time"
+              : "Journey millions of years into the past"}
+          </p>
+        </button>
       </div>
 
       {/* Deep Time slider (conditionally shown) */}
@@ -130,6 +174,31 @@ export default function TimeControls({
               </span>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Map theme picker */}
+      {onMapThemeChange && (
+        <div className="px-4 pb-3 pt-2.5 border-t border-[rgba(255,255,255,0.05)]">
+          <span className="text-[10px] uppercase tracking-widest text-zinc-700 font-medium block mb-2">
+            Map style
+          </span>
+          <div className="flex gap-1.5">
+            {MAP_THEMES.map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => onMapThemeChange(value)}
+                className={[
+                  "flex-1 text-[10px] px-1 py-1.5 rounded-md border transition-all duration-150 font-medium",
+                  mapTheme === value
+                    ? "bg-[rgba(var(--accent),0.14)] border-[rgba(var(--accent),0.30)] text-zinc-200"
+                    : "bg-[rgba(255,255,255,0.02)] border-[rgba(255,255,255,0.06)] text-zinc-500 hover:text-zinc-300 hover:border-[rgba(255,255,255,0.12)]",
+                ].join(" ")}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
