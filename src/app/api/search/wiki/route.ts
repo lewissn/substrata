@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { PlaceCard } from "@/domain/placeCard";
+import { classifyEra } from "@/domain/classifyEra";
 
 const WIKI = "https://en.wikipedia.org/w/api.php";
 
@@ -8,7 +9,7 @@ export async function GET(req: Request) {
 
   const lat = Number(searchParams.get("lat"));
   const lng = Number(searchParams.get("lng"));
-  const radius = Number(searchParams.get("radius") ?? "8000"); // meters
+  const radius = Number(searchParams.get("radius") ?? "8000");
   const limit = Number(searchParams.get("limit") ?? "30");
 
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
@@ -54,6 +55,12 @@ export async function GET(req: Request) {
 
   const cards: PlaceCard[] = hits.map((h) => {
     const p = byId.get(h.pageid);
+    const partial: Partial<PlaceCard> = {
+      source: "wikipedia",
+      kind: "article",
+      title: h.title,
+      summary: p?.extract,
+    };
     return {
       id: `wiki:${h.pageid}`,
       source: "wikipedia",
@@ -64,6 +71,7 @@ export async function GET(req: Request) {
       summary: p?.extract,
       imageUrl: p?.thumbnail?.source,
       url: p?.fullurl,
+      era: classifyEra(partial),
     };
   });
 

@@ -12,16 +12,28 @@ type Props = {
   cards?: PlaceCard[];
   selectedId?: string | null;
   onSelect?: (card: PlaceCard) => void;
-
-  // keeps the selected point visible above your bottom drawer
-  focusOffsetPx?: number; // e.g. 180
+  focusOffsetPx?: number;
 };
 
 const SOURCE_ID = "places";
 const LAYER_CLUSTERS = "clusters";
 const LAYER_CLUSTER_COUNT = "cluster-count";
 const LAYER_POINTS = "unclustered-points";
+const LAYER_SELECTED_GLOW = "selected-point-glow";
 const LAYER_SELECTED = "selected-point";
+
+// Era-based colors as a Mapbox match expression value
+// These map to ERA_COLORS in era.ts but defined here as raw strings for GL expressions
+const ERA_COLOR_MATCH: mapboxgl.Expression = [
+  "match",
+  ["get", "era"],
+  "geological",   "rgba(180,70,70,0.92)",
+  "prehistoric",  "rgba(185,140,80,0.92)",
+  "ancient",      "rgba(212,168,80,0.92)",
+  "medieval",     "rgba(120,148,180,0.92)",
+  "modern",       "rgba(160,160,170,0.88)",
+  /* default */   "rgba(160,160,170,0.88)",
+];
 
 export default function Map({
   center,
@@ -35,7 +47,6 @@ export default function Map({
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const loadedRef = useRef(false);
 
-  // Keep latest card lookup for click handlers
   const cardByIdRef = useRef(new globalThis.Map<string, PlaceCard>());
   useEffect(() => {
     cardByIdRef.current = new globalThis.Map(cards.map((c) => [c.id, c]));
@@ -55,12 +66,13 @@ export default function Map({
           title: c.title,
           source: c.source,
           kind: c.kind,
+          era: c.era,
         },
       })),
     };
   }, [cards]);
 
-  // init map once
+  // Init map once
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -83,18 +95,18 @@ export default function Map({
     map.on("load", () => {
       loadedRef.current = true;
 
-      // Add clustered source
+      // Clustered GeoJSON source
       if (!map.getSource(SOURCE_ID)) {
         map.addSource(SOURCE_ID, {
           type: "geojson",
           data: geojson as any,
           cluster: true,
           clusterMaxZoom: 14,
-          clusterRadius: 42,
+          clusterRadius: 40,
         });
       }
 
-      // Cluster circles
+      // ── Cluster circles (softer, slightly translucent) ──
       if (!map.getLayer(LAYER_CLUSTERS)) {
         map.addLayer({
           id: LAYER_CLUSTERS,
@@ -105,15 +117,18 @@ export default function Map({
             "circle-radius": [
               "step",
               ["get", "point_count"],
-              14, // <= 10
+              13,
               10,
-              18, // <= 30
+              17,
               30,
-              24, // <= 100
+              22,
               100,
-              30,
+              28,
             ],
-            "circle-opacity": 0.9,
+            "circle-color": "rgba(60,60,70,0.82)",
+            "circle-stroke-width": 1,
+            "circle-stroke-color": "rgba(255,255,255,0.10)",
+            "circle-opacity": 0.88,
           },
         });
       }
@@ -127,13 +142,16 @@ export default function Map({
           filter: ["has", "point_count"],
           layout: {
             "text-field": ["get", "point_count_abbreviated"],
-            "text-size": 12,
+            "text-size": 11,
+            "text-font": ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
           },
-          paint: {},
+          paint: {
+            "text-color": "rgba(200,200,210,0.90)",
+          },
         });
       }
 
-      // Unclustered points
+      // ── Unclustered points — era-coloured ──
       if (!map.getLayer(LAYER_POINTS)) {
         map.addLayer({
           id: LAYER_POINTS,
@@ -141,65 +159,66 @@ export default function Map({
           source: SOURCE_ID,
           filter: ["!", ["has", "point_count"]],
           paint: {
-            "circle-radius": 6,
-            "circle-stroke-width": 2,
-            "circle-stroke-color": "rgba(0,0,0,0.45)",
-            // subtle differentiation by source for now
-            "circle-color": [
-  "match",
-  ["get", "source"],
-  "wikipedia",
-  "rgba(255,255,255,0.85)",
-  "osm",
-  "rgba(250,192,94,0.9)",
-  "rgba(255,255,255,0.7)",
-],
+            "circle-radius": 5.5,
+            "circle-color": ERA_COLOR_MATCH,
+            "circle-stroke-width": 1.5,
+            "circle-stroke-color": "rgba(0,0,0,0.50)",
+            "circle-opacity": 0.92,
           },
         });
       }
 
-      // Selected point highlight (separate layer)
+      // ── Selected — outer glow ring ──
+      if (!map.getLayer(LAYER_SELECTED_GLOW)) {
+        map.addLayer({
+          id: LAYER_SELECTED_GLOW,
+          type: "circle",
+          source: SOURCE_ID,
+          filter: ["==", ["get", "id"], ""],
+          paint: {
+            "circle-radius": 16,
+            "circle-color": "rgba(250,192,94,0.0)",
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "rgba(250,192,94,0.28)",
+            "circle-opacity": 1,
+          },
+        });
+      }
+
+      // ── Selected — centre dot ──
       if (!map.getLayer(LAYER_SELECTED)) {
         map.addLayer({
           id: LAYER_SELECTED,
           type: "circle",
           source: SOURCE_ID,
-          filter: ["==", ["get", "id"], ""], // will be set by effect
+          filter: ["==", ["get", "id"], ""],
           paint: {
-            "circle-radius": 10,
-            "circle-color": "rgba(250,192,94,0.22)",
-"circle-stroke-width": 1,
-"circle-stroke-color": "rgba(250,192,94,0.35)",
+            "circle-radius": 8,
+            "circle-color": "rgba(250,192,94,0.30)",
+            "circle-stroke-width": 1.5,
+            "circle-stroke-color": "rgba(250,192,94,0.70)",
           },
         });
       }
 
-      // Click cluster -> zoom in
+      // ── Click cluster → zoom in ──
       map.on("click", LAYER_CLUSTERS, (e) => {
-  const feature = e.features?.[0];
-  if (!feature) return;
+        const feature = e.features?.[0];
+        if (!feature) return;
+        const clusterIdRaw = (feature.properties as any)?.cluster_id;
+        const clusterId = Number(clusterIdRaw);
+        if (!Number.isFinite(clusterId)) return;
+        const src: any = map.getSource(SOURCE_ID);
+        if (!src || typeof src.getClusterExpansionZoom !== "function") return;
+        const coords = (feature.geometry as any).coordinates as [number, number];
+        src.getClusterExpansionZoom(clusterId, (err: any, zoom: any) => {
+          if (err) return;
+          const z = typeof zoom === "number" ? zoom : Number(zoom);
+          map.easeTo({ center: coords, zoom: Number.isFinite(z) ? z : map.getZoom() + 2 });
+        });
+      });
 
-  const clusterIdRaw = (feature.properties as any)?.cluster_id;
-  const clusterId = Number(clusterIdRaw);
-  if (!Number.isFinite(clusterId)) return;
-
-  const src: any = map.getSource(SOURCE_ID);
-  if (!src || typeof src.getClusterExpansionZoom !== "function") return;
-
-  const coords = (feature.geometry as any).coordinates as [number, number];
-
-  src.getClusterExpansionZoom(clusterId, (err: any, zoom: any) => {
-    if (err) return;
-
-    const z = typeof zoom === "number" ? zoom : Number(zoom);
-    map.easeTo({
-      center: coords,
-      zoom: Number.isFinite(z) ? z : map.getZoom() + 2,
-    });
-  });
-});
-
-      // Hover tooltip
+      // ── Hover tooltip ──
       const popup = new mapboxgl.Popup({
         closeButton: false,
         closeOnClick: false,
@@ -211,8 +230,17 @@ export default function Map({
         const f = e.features?.[0];
         if (!f) return;
         const title = f.properties?.title ?? "";
+        const era = f.properties?.era ?? "";
         const coords = (f.geometry as any).coordinates as [number, number];
-        popup.setLngLat(coords).setHTML(`<div style="font-size:12px">${escapeHtml(title)}</div>`).addTo(map);
+        popup
+          .setLngLat(coords)
+          .setHTML(
+            `<div style="font-size:11px;line-height:1.4">
+               <div style="font-weight:600;color:#f4f4f5">${escapeHtml(title)}</div>
+               ${era ? `<div style="color:#9ca3af;font-size:10px;text-transform:uppercase;letter-spacing:0.08em;margin-top:2px">${escapeHtml(era)}</div>` : ""}
+             </div>`
+          )
+          .addTo(map);
       });
 
       map.on("mouseleave", LAYER_POINTS, () => {
@@ -220,7 +248,7 @@ export default function Map({
         popup.remove();
       });
 
-      // Click point -> select
+      // ── Click point → select ──
       map.on("click", LAYER_POINTS, (e) => {
         const f = e.features?.[0];
         if (!f) return;
@@ -231,13 +259,11 @@ export default function Map({
       });
     });
 
-    return () => {
-      map.remove();
-    };
+    return () => { map.remove(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update source data whenever cards change
+  // Update source data when cards change
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !loadedRef.current) return;
@@ -246,26 +272,20 @@ export default function Map({
     src.setData(geojson as any);
   }, [geojson]);
 
-  // Update selected highlight filter
+  // Update selected highlight layers
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !loadedRef.current) return;
-    if (!map.getLayer(LAYER_SELECTED)) return;
-    map.setFilter(LAYER_SELECTED, ["==", ["get", "id"], selectedId ?? ""]);
+    const filter: mapboxgl.FilterSpecification = ["==", ["get", "id"], selectedId ?? ""];
+    if (map.getLayer(LAYER_SELECTED)) map.setFilter(LAYER_SELECTED, filter);
+    if (map.getLayer(LAYER_SELECTED_GLOW)) map.setFilter(LAYER_SELECTED_GLOW, filter);
   }, [selectedId]);
 
-  // Fly to requested center (with offset so selected stays visible above drawer)
+  // Fly to center
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-
-    map.flyTo({
-      center,
-      // This offset is the fix for “it moves away / out of view”
-      // It intentionally positions the target ABOVE your bottom drawer.
-      offset: [0, focusOffsetPx],
-      essential: true,
-    });
+    map.flyTo({ center, offset: [0, focusOffsetPx], essential: true });
   }, [center, focusOffsetPx]);
 
   return <div ref={containerRef} className="w-full h-full" />;
