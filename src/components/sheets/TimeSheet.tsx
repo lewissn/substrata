@@ -21,6 +21,10 @@ export default function TimeSheet({
   onSeaLevelChange,
   overlayBoost,
   onOverlayBoostToggle,
+  paleoEnabled,
+  onPaleoToggle,
+  paleoOpacity,
+  onPaleoOpacityChange,
   paleoData,
   activeSources,
   onToggleSource,
@@ -40,6 +44,10 @@ export default function TimeSheet({
   onSeaLevelChange?: (v: number | null) => void;
   overlayBoost?: boolean;
   onOverlayBoostToggle?: () => void;
+  paleoEnabled?: boolean;
+  onPaleoToggle?: () => void;
+  paleoOpacity?: number;
+  onPaleoOpacityChange?: (v: number) => void;
   paleoData: ReconstructionResult | null;
   activeSources: PlaceSource[];
   onToggleSource: (s: PlaceSource) => void;
@@ -63,6 +71,10 @@ export default function TimeSheet({
         onSeaLevelChange={onSeaLevelChange}
         overlayBoost={overlayBoost}
         onOverlayBoostToggle={onOverlayBoostToggle}
+        paleoEnabled={paleoEnabled}
+        onPaleoToggle={onPaleoToggle}
+        paleoOpacity={paleoOpacity}
+        onPaleoOpacityChange={onPaleoOpacityChange}
       />
 
       {/* ── Context panel ── */}

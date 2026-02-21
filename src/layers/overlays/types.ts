@@ -9,6 +9,8 @@ export type OverlayParams = {
   ma: number;
   boost: number; // 1.0 = normal, ~1.15 = boosted
   seaLevelOverride: number | null; // null = auto from Ma curve
+  paleoEnabled: boolean; // paleogeography land/ocean overlay
+  paleoOpacity: number; // 0.35–0.65
 };
 
 export interface OverlayModule {

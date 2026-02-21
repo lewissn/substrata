@@ -1,6 +1,7 @@
 import type mapboxgl from "mapbox-gl";
 import type { OverlayModule, OverlayParams } from "./types";
 import { timeTintOverlay } from "./timeTint";
+import { paleogeographyOverlay } from "./paleogeography";
 import { lgmIceOverlay } from "./lgmIce";
 import { lgmExposedOverlay } from "./lgmExposed";
 import { seaLevelOverlay } from "./seaLevel";
@@ -14,6 +15,7 @@ import { seaLevelOverlay } from "./seaLevel";
 /** All registered overlay modules in render order (bottom to top) */
 const OVERLAYS: OverlayModule[] = [
   timeTintOverlay,
+  paleogeographyOverlay,
   lgmIceOverlay,
   lgmExposedOverlay,
   seaLevelOverlay,
