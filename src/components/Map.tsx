@@ -31,6 +31,8 @@ type Props = {
   interactionEnabled?: boolean;
   seaLevelOverride?: number | null;
   overlayBoost?: boolean;
+  paleoEnabled?: boolean;
+  paleoOpacity?: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -205,6 +207,8 @@ export default function Map({
   interactionEnabled = true,
   seaLevelOverride = null,
   overlayBoost = false,
+  paleoEnabled = false,
+  paleoOpacity = 0.5,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -220,6 +224,8 @@ export default function Map({
   const coastlineRef = useRef<GeoJSON.FeatureCollection | null>(null);
   const seaLevelOverrideRef = useRef<number | null>(null);
   const overlayBoostRef = useRef(false);
+  const paleoEnabledRef = useRef(false);
+  const paleoOpacityRef = useRef(0.5);
   const onSelectRef = useRef(onSelect);
   const onCenterChangeRef = useRef(onCenterChange);
   const modeRef = useRef<MapMode>("modern");
@@ -233,6 +239,8 @@ export default function Map({
   useEffect(() => { coastlineRef.current = coastlineGeoJSON ?? null; }, [coastlineGeoJSON]);
   useEffect(() => { seaLevelOverrideRef.current = seaLevelOverride; }, [seaLevelOverride]);
   useEffect(() => { overlayBoostRef.current = overlayBoost; }, [overlayBoost]);
+  useEffect(() => { paleoEnabledRef.current = paleoEnabled; }, [paleoEnabled]);
+  useEffect(() => { paleoOpacityRef.current = paleoOpacity; }, [paleoOpacity]);
   useEffect(() => { minimalLabelsRef.current = minimalLabels; }, [minimalLabels]);
   useEffect(() => {
     cardByIdRef.current = new globalThis.Map(cards.map((c) => [c.id, c]));
@@ -268,6 +276,8 @@ export default function Map({
       ma: maRef.current,
       boost: overlayBoostRef.current ? 1.15 : 1.0,
       seaLevelOverride: seaLevelOverrideRef.current,
+      paleoEnabled: paleoEnabledRef.current,
+      paleoOpacity: paleoOpacityRef.current,
     };
   }
 
@@ -589,9 +599,11 @@ export default function Map({
       ma,
       boost: overlayBoost ? 1.15 : 1.0,
       seaLevelOverride,
+      paleoEnabled,
+      paleoOpacity,
     };
     updateAllOverlays(map, params);
-  }, [ma, seaLevelOverride, overlayBoost]);
+  }, [ma, seaLevelOverride, overlayBoost, paleoEnabled, paleoOpacity]);
 
   // Paleocoastline data update
   useEffect(() => {
@@ -604,14 +616,16 @@ export default function Map({
     } else {
       src.setData(EMPTY_FC as any);
     }
-    // After data update, re-run overlay update so sea level overlay reflects new coastline
+    // After data update, re-run overlay update so overlays reflect new coastline
     const params: OverlayParams = {
       ma,
       boost: overlayBoost ? 1.15 : 1.0,
       seaLevelOverride,
+      paleoEnabled,
+      paleoOpacity,
     };
     updateAllOverlays(map, params);
-  }, [coastlineGeoJSON, ma, overlayBoost, seaLevelOverride]);
+  }, [coastlineGeoJSON, ma, overlayBoost, seaLevelOverride, paleoEnabled, paleoOpacity]);
 
   // Marker/cluster styling per mode
   useEffect(() => {

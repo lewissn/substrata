@@ -26,6 +26,8 @@ export default function DesktopLayout(props: LayoutProps) {
     ma, onMaChange,
     seaLevelOverride, onSeaLevelChange,
     overlayBoost, onOverlayBoostToggle,
+    paleoEnabled, onPaleoToggle,
+    paleoOpacity, onPaleoOpacityChange,
     paleoData, coastlineGeoJSON,
     center, onCenterChange,
     nearbyFossilCount, onSurpriseMe,
@@ -88,6 +90,10 @@ export default function DesktopLayout(props: LayoutProps) {
             onSeaLevelChange={onSeaLevelChange}
             overlayBoost={overlayBoost}
             onOverlayBoostToggle={onOverlayBoostToggle}
+            paleoEnabled={paleoEnabled}
+            onPaleoToggle={onPaleoToggle}
+            paleoOpacity={paleoOpacity}
+            onPaleoOpacityChange={onPaleoOpacityChange}
           />
 
           {/* ── Context panel ── */}
@@ -167,6 +173,8 @@ export default function DesktopLayout(props: LayoutProps) {
             deepTimeEnabled={deepTimeEnabled}
             seaLevelOverride={seaLevelOverride}
             overlayBoost={overlayBoost}
+            paleoEnabled={deepTimeEnabled ? paleoEnabled : false}
+            paleoOpacity={paleoOpacity}
           />
 
           {/* ── Active overlays indicator ── */}
@@ -175,6 +183,7 @@ export default function DesktopLayout(props: LayoutProps) {
             deepTimeEnabled={deepTimeEnabled}
             seaLevelOverride={seaLevelOverride}
             overlayBoost={overlayBoost}
+            paleoEnabled={paleoEnabled}
           />
 
           {/* ── Attribution footer ── */}

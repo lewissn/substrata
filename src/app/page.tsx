@@ -39,6 +39,8 @@ export default function Home() {
   // --- Overlays ---
   const [seaLevelOverride, setSeaLevelOverride] = useState<number | null>(null);
   const [overlayBoost, setOverlayBoost] = useState(false);
+  const [paleoEnabled, setPaleoEnabled] = useState(false);
+  const [paleoOpacity, setPaleoOpacity] = useState(0.5);
 
   // --- Paleo reconstruction data ---
   const [paleoData, setPaleoData] = useState<ReconstructionResult | null>(null);
@@ -267,6 +269,8 @@ export default function Home() {
     setMa(0);
     setSeaLevelOverride(null);
     setOverlayBoost(false);
+    setPaleoEnabled(false);
+    setPaleoOpacity(0.5);
   };
 
   const hasActiveFilters =
@@ -312,6 +316,10 @@ export default function Home() {
     onSeaLevelChange: setSeaLevelOverride,
     overlayBoost,
     onOverlayBoostToggle: () => setOverlayBoost((v) => !v),
+    paleoEnabled,
+    onPaleoToggle: () => setPaleoEnabled((v) => !v),
+    paleoOpacity,
+    onPaleoOpacityChange: setPaleoOpacity,
     paleoData,
     coastlineGeoJSON,
     center,

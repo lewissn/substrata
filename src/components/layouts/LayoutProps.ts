@@ -43,6 +43,10 @@ export type LayoutProps = {
   onSeaLevelChange: (v: number | null) => void;
   overlayBoost: boolean;
   onOverlayBoostToggle: () => void;
+  paleoEnabled: boolean;
+  onPaleoToggle: () => void;
+  paleoOpacity: number;
+  onPaleoOpacityChange: (v: number) => void;
 
   // Context / Paleo
   paleoData: ReconstructionResult | null;

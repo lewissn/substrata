@@ -31,6 +31,8 @@ export default function MobileLayout(props: LayoutProps) {
     ma, onMaChange,
     seaLevelOverride, onSeaLevelChange,
     overlayBoost, onOverlayBoostToggle,
+    paleoEnabled, onPaleoToggle,
+    paleoOpacity, onPaleoOpacityChange,
     paleoData, coastlineGeoJSON,
     center, onCenterChange,
     nearbyFossilCount, onSurpriseMe,
@@ -119,6 +121,8 @@ export default function MobileLayout(props: LayoutProps) {
         interactionEnabled={interactionEnabled}
         seaLevelOverride={seaLevelOverride}
         overlayBoost={overlayBoost}
+        paleoEnabled={deepTimeEnabled ? paleoEnabled : false}
+        paleoOpacity={paleoOpacity}
       />
 
       {/* ── Active overlays indicator ── */}
@@ -127,6 +131,7 @@ export default function MobileLayout(props: LayoutProps) {
         deepTimeEnabled={deepTimeEnabled}
         seaLevelOverride={seaLevelOverride}
         overlayBoost={overlayBoost}
+        paleoEnabled={paleoEnabled}
       />
 
       {/* ── Attribution ── */}
@@ -194,6 +199,10 @@ export default function MobileLayout(props: LayoutProps) {
             onSeaLevelChange={onSeaLevelChange}
             overlayBoost={overlayBoost}
             onOverlayBoostToggle={onOverlayBoostToggle}
+            paleoEnabled={paleoEnabled}
+            onPaleoToggle={onPaleoToggle}
+            paleoOpacity={paleoOpacity}
+            onPaleoOpacityChange={onPaleoOpacityChange}
             paleoData={paleoData}
             activeSources={activeSources}
             onToggleSource={onToggleSource}
