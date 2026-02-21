@@ -72,7 +72,7 @@ export default function SeaLevelSlider({
       <div className="text-center">
         <span className={[
           "text-[12px] font-medium",
-          isOverridden ? "text-sky-400/80" : "text-zinc-400",
+          isOverridden ? "text-[#89CDD1]" : "text-zinc-400",
         ].join(" ")}>
           {formatSeaLevel(displayValue)}
         </span>

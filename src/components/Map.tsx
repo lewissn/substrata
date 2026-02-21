@@ -365,9 +365,9 @@ export default function Map({
         filter: ["==", ["get", "id"], selectedIdRef.current ?? ""],
         paint: {
           "circle-radius": 16,
-          "circle-color": "rgba(250,192,94,0.0)",
+          "circle-color": "rgba(44,111,116,0.0)",
           "circle-stroke-width": selectedGlowStrokeWidth(m),
-          "circle-stroke-color": "rgba(250,192,94,0.28)",
+          "circle-stroke-color": "rgba(44,111,116,0.35)",
           "circle-opacity": 1,
         },
       });
@@ -380,9 +380,9 @@ export default function Map({
         filter: ["==", ["get", "id"], selectedIdRef.current ?? ""],
         paint: {
           "circle-radius": 8,
-          "circle-color": "rgba(250,192,94,0.30)",
+          "circle-color": "rgba(44,111,116,0.30)",
           "circle-stroke-width": 1.5,
-          "circle-stroke-color": "rgba(250,192,94,0.70)",
+          "circle-stroke-color": "rgba(44,111,116,0.75)",
         },
       });
     }

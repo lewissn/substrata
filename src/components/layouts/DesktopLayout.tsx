@@ -44,7 +44,7 @@ export default function DesktopLayout(props: LayoutProps) {
             onChange={(e) => onQueryChange(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") onGeocode(); }}
             placeholder="Navigate to a place..."
-            className="w-full px-4 py-2.5 rounded-xl bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] text-zinc-100 text-sm placeholder:text-zinc-600 outline-none focus:ring-2 focus:ring-[rgba(var(--accent),0.30)] focus:border-[rgba(var(--accent),0.30)] transition"
+            className="w-full px-4 py-2.5 rounded-xl bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] text-zinc-100 text-sm placeholder:text-zinc-600 outline-none focus:ring-2 focus:ring-[rgba(44,111,116,0.35)] focus:border-[rgba(44,111,116,0.40)] transition"
           />
         </div>
 
@@ -58,7 +58,7 @@ export default function DesktopLayout(props: LayoutProps) {
         <button
           onClick={onSearchArea}
           disabled={loading}
-          className="px-4 py-2.5 rounded-xl border border-[rgba(var(--accent),0.32)] bg-[rgba(var(--accent),0.12)] hover:bg-[rgba(var(--accent),0.18)] text-zinc-50 text-sm font-semibold transition disabled:opacity-50"
+          className="px-4 py-2.5 rounded-xl border border-[rgba(44,111,116,0.50)] bg-[#1F5A5C] hover:bg-[#2C6F74] text-zinc-50 text-sm font-semibold transition disabled:opacity-50"
         >
           {loading ? "Searching..." : "Search area"}
         </button>

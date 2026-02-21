@@ -8,7 +8,24 @@
   --border: 39 39 42;      /* zinc-700 */
   --muted: 113 113 122;    /* zinc-500 */
   --text: 244 244 245;     /* zinc-100 */
-  --accent: 250 192 94;    /* warm gold */
+  --accent: 250 192 94;    /* warm gold — kept for map marker paint */
+
+  /* Brand teal accent */
+  --accent-primary: #1F5A5C;
+  --accent-hover:   #2C6F74;
+  --accent-deep:    #163E40;
+  --accent-glow:    rgba(44, 111, 116, 0.35);
+
+  /* Readable teal for small text labels on dark backgrounds */
+  --accent-label:   #89CDD1;
+
+  /* Neutral panel tokens */
+  --bg-main:        #0D0F11;
+  --bg-panel:       #121416;
+  --text-primary:   #E6E8EA;
+  --text-secondary: #A2A8AD;
+  --text-muted:     #6F767C;
+  --border-subtle:  rgba(255, 255, 255, 0.06);
 }
 
 /* ── Base ── */
@@ -127,20 +144,20 @@ body {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: rgb(var(--accent));
+  background: var(--accent-primary);
   border: 2px solid rgba(0, 0, 0, 0.30);
   cursor: pointer;
-  box-shadow: 0 0 8px rgba(250, 192, 94, 0.3);
+  box-shadow: 0 0 8px rgba(44, 111, 116, 0.45);
 }
 
 .slider-deep::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: rgb(var(--accent));
+  background: var(--accent-primary);
   border: 2px solid rgba(0, 0, 0, 0.30);
   cursor: pointer;
-  box-shadow: 0 0 8px rgba(250, 192, 94, 0.3);
+  box-shadow: 0 0 8px rgba(44, 111, 116, 0.45);
 }
 
 /* ── Atmospheric tint overlays ── */
@@ -174,6 +191,12 @@ body {
 .atmos-deeptime {
   background: rgba(100, 80, 60, 0.08);
   mix-blend-mode: multiply;
+}
+
+/* ── Subtle teal panel depth ── */
+/* Use on sidebar / panel backgrounds for tonal warmth */
+.panel-teal {
+  background: linear-gradient(180deg, #0F1C1D 0%, #121A1B 100%);
 }
 
 /* ── Bottom sheet / mobile utilities ── */

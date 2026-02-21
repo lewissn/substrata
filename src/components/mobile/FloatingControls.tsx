@@ -50,7 +50,7 @@ export default function FloatingControls({
           <polyline points="12 6 12 12 16 14" />
         </svg>
         {hasActiveFilters && (
-          <div className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-[rgb(var(--accent))]" />
+          <div className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-[#2C6F74]" />
         )}
       </button>
 
