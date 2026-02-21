@@ -39,17 +39,27 @@ export function useBottomSheet(
   const lastTimeRef = useRef(0);
   const draggingRef = useRef(false);
   const vhRef = useRef(
-    typeof window !== "undefined" ? window.innerHeight : 800
+    typeof window !== "undefined"
+      ? (window.visualViewport?.height ?? window.innerHeight)
+      : 800
   );
 
-  // Keep viewport height up to date
+  // Keep viewport height up to date.
+  // On Safari iOS, window.innerHeight uses the *static* viewport (toolbar hidden),
+  // but visualViewport.height gives the *dynamic* height (toolbar visible).
+  // We listen to both resize events so the sheet stays in sync with toolbar changes.
   useEffect(() => {
-    vhRef.current = window.innerHeight;
+    const getHeight = () => window.visualViewport?.height ?? window.innerHeight;
+    vhRef.current = getHeight();
     function onResize() {
-      vhRef.current = window.innerHeight;
+      vhRef.current = getHeight();
     }
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    window.visualViewport?.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.visualViewport?.removeEventListener("resize", onResize);
+    };
   }, []);
 
   // Compute translateY for a given snap point
@@ -149,7 +159,9 @@ export function useBottomSheet(
     transform: `translateY(${translateY}px)`,
     transition: isDragging ? "none" : "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)",
     willChange: "transform",
-    height: `${SHEET_VH * 100}vh`,
+    // dvh tracks the dynamic viewport (Safari toolbar show/hide) so the JS
+    // translateY calculations and the CSS height stay in sync on iOS Safari.
+    height: `${SHEET_VH * 100}dvh`,
   };
 
   return {
