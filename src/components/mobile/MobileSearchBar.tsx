@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
+
 // ---------------------------------------------------------------------------
-// MobileSearchBar — floating search bar for mobile
+// MobileSearchBar — floating glassmorphism pill for mobile
 // ---------------------------------------------------------------------------
 
 export default function MobileSearchBar({
@@ -17,40 +19,58 @@ export default function MobileSearchBar({
   onSearchArea: () => void;
   loading: boolean;
 }) {
+  const [focused, setFocused] = useState(false);
+
   return (
     <div
-      className="fixed top-3 left-3 right-3 z-30 rounded-2xl border border-[rgba(255,255,255,0.09)] bg-[rgba(9,9,11,0.95)] backdrop-blur-xl shadow-drawer"
-      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+      className="fixed left-4 right-4 z-30"
+      style={{ top: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
     >
-      <div className="flex items-center gap-1.5 p-2">
+      <div
+        className={[
+          "flex items-center rounded-2xl overflow-hidden",
+          "bg-[rgba(10,10,12,0.76)] backdrop-blur-2xl",
+          "shadow-[0_12px_40px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)]",
+          "border transition-colors duration-200",
+          focused
+            ? "border-[rgba(var(--accent),0.32)]"
+            : "border-[rgba(255,255,255,0.10)]",
+        ].join(" ")}
+      >
+        {/* Search icon */}
+        <div className="pl-4 pr-2.5 flex-shrink-0 text-zinc-500">
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+            <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M10.5 10.5L13.5 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </div>
+
+        {/* Input */}
         <input
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") onGeocode();
-          }}
-          placeholder="Navigate to a place..."
-          className="flex-1 min-h-[44px] px-3 rounded-xl bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] text-zinc-100 text-[16px] placeholder:text-zinc-600 outline-none focus:ring-2 focus:ring-[rgba(var(--accent),0.30)] focus:border-[rgba(var(--accent),0.30)] transition"
+          onKeyDown={(e) => { if (e.key === "Enter") onGeocode(); }}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          placeholder="Search places..."
+          className="flex-1 min-w-0 bg-transparent py-3.5 text-[15px] text-zinc-100 placeholder:text-zinc-500 outline-none"
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
+          enterKeyHint="go"
         />
 
-        <button
-          onClick={onGeocode}
-          className="min-h-[44px] min-w-[44px] px-3 rounded-xl border border-[rgba(255,255,255,0.09)] bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.07)] text-zinc-200 text-sm font-medium transition"
-          aria-label="Go to location"
-        >
-          Go
-        </button>
+        {/* Divider */}
+        <div className="flex-shrink-0 w-px h-4 mx-0.5 bg-[rgba(255,255,255,0.08)]" />
 
+        {/* Search area CTA */}
         <button
           onClick={onSearchArea}
           disabled={loading}
-          className="min-h-[44px] px-3 rounded-xl border border-[rgba(var(--accent),0.32)] bg-[rgba(var(--accent),0.12)] hover:bg-[rgba(var(--accent),0.18)] text-zinc-50 text-sm font-semibold transition disabled:opacity-50"
+          className="flex-shrink-0 px-4 py-3.5 text-[13px] font-semibold text-[rgba(var(--accent),0.85)] hover:text-[rgba(var(--accent),1)] active:opacity-60 transition-opacity disabled:opacity-40 whitespace-nowrap"
           aria-label="Search this area"
         >
-          {loading ? "..." : "Search"}
+          {loading ? "···" : "Search"}
         </button>
       </div>
     </div>
