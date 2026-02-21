@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import type { PlaceCard } from "@/domain/placeCard";
+import { lgmIceGeoJSON, lgmExposedLandGeoJSON } from "@/domain/lgm";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
@@ -14,6 +15,7 @@ type Props = {
   onSelect?: (card: PlaceCard) => void;
   focusOffsetPx?: number;
   ma?: number; // Deep Time Ma for style effects
+  coastlineGeoJSON?: GeoJSON.FeatureCollection | null;
 };
 
 const SOURCE_ID = "places";
@@ -23,6 +25,19 @@ const LAYER_POINTS = "unclustered-points";
 const LAYER_SELECTED_GLOW = "selected-point-glow";
 const LAYER_SELECTED = "selected-point";
 const LAYER_TIME_TINT = "time-tint-overlay";
+
+// LGM overlay layer IDs
+const SOURCE_ICE = "lgm-ice-src";
+const LAYER_ICE_FILL = "lgm-ice-fill";
+const LAYER_ICE_BORDER = "lgm-ice-border";
+const SOURCE_EXPOSED = "lgm-exposed-src";
+const LAYER_EXPOSED_FILL = "lgm-exposed-fill";
+const LAYER_EXPOSED_BORDER = "lgm-exposed-border";
+
+// Paleocoastline layer IDs
+const SOURCE_COASTLINE = "paleo-coastline-src";
+const LAYER_COASTLINE_FILL = "paleo-coastline-fill";
+const LAYER_COASTLINE_BORDER = "paleo-coastline-border";
 
 // Era-based marker colours
 const ERA_COLOR_MATCH: mapboxgl.Expression = [
@@ -48,6 +63,27 @@ function timeTintColor(ma: number): string {
   return "rgba(60,50,70,0.05)"; // Precambrian: muted purple
 }
 
+// Should LGM ice sheets be visible at this Ma?
+function isLGMRange(ma: number): boolean {
+  return ma >= 0.015 && ma <= 0.03;
+}
+
+// Opacity for LGM layers: fade in/out near boundaries
+function lgmOpacity(ma: number): number {
+  if (!isLGMRange(ma)) return 0;
+  // Peak at 0.021 Ma (LGM), fade towards edges
+  const center = 0.021;
+  const halfWidth = 0.009;
+  const dist = Math.abs(ma - center) / halfWidth;
+  return Math.max(0, 1 - dist * 0.6) * 0.55;
+}
+
+// Empty GeoJSON for initialization
+const EMPTY_FC: GeoJSON.FeatureCollection = {
+  type: "FeatureCollection",
+  features: [],
+};
+
 export default function Map({
   center,
   onCenterChange,
@@ -56,6 +92,7 @@ export default function Map({
   onSelect,
   focusOffsetPx = 180,
   ma = 0,
+  coastlineGeoJSON,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -108,8 +145,6 @@ export default function Map({
       loadedRef.current = true;
 
       // ── Time tint overlay (full-viewport color layer) ──
-      // This is a background layer that adds a subtle tint to the map when
-      // in Deep Time mode. It uses the Mapbox fill layer on a world polygon.
       map.addSource("time-tint-src", {
         type: "geojson",
         data: {
@@ -129,6 +164,89 @@ export default function Map({
         paint: {
           "fill-color": "rgba(0,0,0,0)",
           "fill-opacity": 1,
+        },
+      });
+
+      // ── Paleocoastline layer (from GPlates) ──
+      map.addSource(SOURCE_COASTLINE, {
+        type: "geojson",
+        data: EMPTY_FC as any,
+      });
+
+      map.addLayer({
+        id: LAYER_COASTLINE_FILL,
+        type: "fill",
+        source: SOURCE_COASTLINE,
+        paint: {
+          "fill-color": "rgba(120,160,100,0.12)",
+          "fill-opacity": 0,
+        },
+      });
+
+      map.addLayer({
+        id: LAYER_COASTLINE_BORDER,
+        type: "line",
+        source: SOURCE_COASTLINE,
+        paint: {
+          "line-color": "rgba(120,160,100,0.35)",
+          "line-width": 1,
+          "line-opacity": 0,
+        },
+      });
+
+      // ── LGM ice sheet overlay ──
+      map.addSource(SOURCE_ICE, {
+        type: "geojson",
+        data: lgmIceGeoJSON() as any,
+      });
+
+      map.addLayer({
+        id: LAYER_ICE_FILL,
+        type: "fill",
+        source: SOURCE_ICE,
+        paint: {
+          "fill-color": "rgba(180,210,240,0.35)",
+          "fill-opacity": 0,
+        },
+      });
+
+      map.addLayer({
+        id: LAYER_ICE_BORDER,
+        type: "line",
+        source: SOURCE_ICE,
+        paint: {
+          "line-color": "rgba(200,220,250,0.45)",
+          "line-width": 1.5,
+          "line-dasharray": [4, 3],
+          "line-opacity": 0,
+        },
+      });
+
+      // ── LGM exposed land (land bridges) ──
+      map.addSource(SOURCE_EXPOSED, {
+        type: "geojson",
+        data: lgmExposedLandGeoJSON() as any,
+      });
+
+      map.addLayer({
+        id: LAYER_EXPOSED_FILL,
+        type: "fill",
+        source: SOURCE_EXPOSED,
+        paint: {
+          "fill-color": "rgba(170,150,100,0.25)",
+          "fill-opacity": 0,
+        },
+      });
+
+      map.addLayer({
+        id: LAYER_EXPOSED_BORDER,
+        type: "line",
+        source: SOURCE_EXPOSED,
+        paint: {
+          "line-color": "rgba(180,160,110,0.40)",
+          "line-width": 1,
+          "line-dasharray": [3, 2],
+          "line-opacity": 0,
         },
       });
 
@@ -276,6 +394,36 @@ export default function Map({
         popup.remove();
       });
 
+      // ── Hover tooltip for LGM layers ──
+      const lgmPopup = new mapboxgl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        offset: 10,
+      });
+
+      for (const layerId of [LAYER_ICE_FILL, LAYER_EXPOSED_FILL]) {
+        map.on("mousemove", layerId, (e) => {
+          const f = e.features?.[0];
+          if (!f) return;
+          const name = f.properties?.name ?? "";
+          const desc = f.properties?.description ?? "";
+          if (!name) return;
+          lgmPopup
+            .setLngLat(e.lngLat)
+            .setHTML(
+              `<div style="font-size:11px;line-height:1.4">
+                 <div style="font-weight:600;color:#f4f4f5">${escapeHtml(name)}</div>
+                 <div style="color:#9ca3af;font-size:10px;margin-top:2px">${escapeHtml(desc)}</div>
+               </div>`
+            )
+            .addTo(map);
+        });
+
+        map.on("mouseleave", layerId, () => {
+          lgmPopup.remove();
+        });
+      }
+
       // ── Click point → select ──
       map.on("click", LAYER_POINTS, (e) => {
         const f = e.features?.[0];
@@ -316,6 +464,58 @@ export default function Map({
     if (!map.getLayer(LAYER_TIME_TINT)) return;
     map.setPaintProperty(LAYER_TIME_TINT, "fill-color", timeTintColor(ma));
   }, [ma]);
+
+  // Update LGM ice sheet + exposed land opacity
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loadedRef.current) return;
+
+    const iceOpacity = lgmOpacity(ma);
+    const exposedOpacity = iceOpacity * 0.9;
+
+    // Ice sheets
+    if (map.getLayer(LAYER_ICE_FILL)) {
+      map.setPaintProperty(LAYER_ICE_FILL, "fill-opacity", iceOpacity);
+    }
+    if (map.getLayer(LAYER_ICE_BORDER)) {
+      map.setPaintProperty(LAYER_ICE_BORDER, "line-opacity", iceOpacity > 0 ? iceOpacity + 0.15 : 0);
+    }
+
+    // Exposed land
+    if (map.getLayer(LAYER_EXPOSED_FILL)) {
+      map.setPaintProperty(LAYER_EXPOSED_FILL, "fill-opacity", exposedOpacity);
+    }
+    if (map.getLayer(LAYER_EXPOSED_BORDER)) {
+      map.setPaintProperty(LAYER_EXPOSED_BORDER, "line-opacity", exposedOpacity > 0 ? exposedOpacity + 0.1 : 0);
+    }
+  }, [ma]);
+
+  // Update paleocoastline layer
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loadedRef.current) return;
+
+    const src = map.getSource(SOURCE_COASTLINE) as mapboxgl.GeoJSONSource | undefined;
+    if (!src) return;
+
+    if (coastlineGeoJSON && ma > 0) {
+      src.setData(coastlineGeoJSON as any);
+      if (map.getLayer(LAYER_COASTLINE_FILL)) {
+        map.setPaintProperty(LAYER_COASTLINE_FILL, "fill-opacity", 0.12);
+      }
+      if (map.getLayer(LAYER_COASTLINE_BORDER)) {
+        map.setPaintProperty(LAYER_COASTLINE_BORDER, "line-opacity", 0.35);
+      }
+    } else {
+      src.setData(EMPTY_FC as any);
+      if (map.getLayer(LAYER_COASTLINE_FILL)) {
+        map.setPaintProperty(LAYER_COASTLINE_FILL, "fill-opacity", 0);
+      }
+      if (map.getLayer(LAYER_COASTLINE_BORDER)) {
+        map.setPaintProperty(LAYER_COASTLINE_BORDER, "line-opacity", 0);
+      }
+    }
+  }, [coastlineGeoJSON, ma]);
 
   // Fly to center
   useEffect(() => {
