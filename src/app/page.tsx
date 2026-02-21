@@ -462,6 +462,8 @@ export default function Home() {
             focusOffsetPx={200}
             ma={deepTimeEnabled ? ma : 0}
             coastlineGeoJSON={deepTimeEnabled ? coastlineGeoJSON : null}
+            activeEra={activeEra}
+            deepTimeEnabled={deepTimeEnabled}
           />
 
           {/* ── Map legend (when overlays active) ── */}
