@@ -36,6 +36,10 @@ export default function Home() {
   const [deepTimeEnabled, setDeepTimeEnabled] = useState(false);
   const [ma, setMa] = useState(0);
 
+  // --- Overlays ---
+  const [seaLevelOverride, setSeaLevelOverride] = useState<number | null>(null);
+  const [overlayBoost, setOverlayBoost] = useState(false);
+
   // --- Paleo reconstruction data ---
   const [paleoData, setPaleoData] = useState<ReconstructionResult | null>(null);
   const paleoFetchRef = useRef<AbortController | null>(null);
@@ -261,6 +265,8 @@ export default function Home() {
     setActiveEra(null);
     setDeepTimeEnabled(false);
     setMa(0);
+    setSeaLevelOverride(null);
+    setOverlayBoost(false);
   };
 
   const hasActiveFilters =
@@ -302,6 +308,10 @@ export default function Home() {
     onDeepTimeToggle: () => setDeepTimeEnabled((v) => !v),
     ma,
     onMaChange: setMa,
+    seaLevelOverride,
+    onSeaLevelChange: setSeaLevelOverride,
+    overlayBoost,
+    onOverlayBoostToggle: () => setOverlayBoost((v) => !v),
     paleoData,
     coastlineGeoJSON,
     center,
