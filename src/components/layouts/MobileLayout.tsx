@@ -106,7 +106,7 @@ export default function MobileLayout(props: LayoutProps) {
       : "Time & Filters";
 
   return (
-    <div className="h-[100dvh] w-screen overflow-hidden relative">
+    <div className="fixed inset-0 overflow-hidden">
       {/* ── Full-screen map ── */}
       <Map
         center={center}
