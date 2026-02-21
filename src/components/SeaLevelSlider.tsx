@@ -3,11 +3,22 @@
 import { formatSeaLevel } from "@/domain/lgm";
 
 // ---------------------------------------------------------------------------
-// Sea Level Slider — discrete steps from 0 to -120m
+// Sea Level Slider — full range from +170m to -120m
 // ---------------------------------------------------------------------------
 
-const SEA_LEVEL_STEPS = [0, -20, -40, -60, -80, -100, -120] as const;
-const STEP_COUNT = SEA_LEVEL_STEPS.length - 1; // 6 steps
+const SEA_LEVEL_STEPS = [170, 100, 50, 20, 0, -20, -60, -120] as const;
+const STEP_COUNT = SEA_LEVEL_STEPS.length - 1; // 7 steps
+
+/** Find the index of the step nearest to a given value */
+function nearestStepIndex(value: number): number {
+  let best = 0;
+  for (let i = 1; i < SEA_LEVEL_STEPS.length; i++) {
+    if (Math.abs(SEA_LEVEL_STEPS[i] - value) < Math.abs(SEA_LEVEL_STEPS[best] - value)) {
+      best = i;
+    }
+  }
+  return best;
+}
 
 export default function SeaLevelSlider({
   value,
@@ -22,9 +33,6 @@ export default function SeaLevelSlider({
 }) {
   const displayValue = value ?? autoValue;
   const isOverridden = value !== null;
-
-  // Map the display value to slider position (0 = 0m, 6 = -120m)
-  const sliderPos = Math.round(Math.abs(Math.max(-120, Math.min(0, displayValue))) / 20);
 
   return (
     <div className="space-y-2">
@@ -42,15 +50,15 @@ export default function SeaLevelSlider({
         )}
       </div>
 
-      {/* Slider */}
+      {/* Slider — left = high (positive), right = low (negative) */}
       <div className="flex items-center gap-3">
-        <span className="text-[10px] text-zinc-600 w-6 text-right">0m</span>
+        <span className="text-[10px] text-zinc-600 w-10 text-right">+170m</span>
         <input
           type="range"
           min={0}
           max={STEP_COUNT}
           step={1}
-          value={sliderPos}
+          value={nearestStepIndex(displayValue)}
           onChange={(e) => {
             const idx = Number(e.target.value);
             onChange(SEA_LEVEL_STEPS[idx]);
@@ -86,7 +94,7 @@ export default function SeaLevelSlider({
                 : "text-zinc-700 hover:text-zinc-500",
             ].join(" ")}
           >
-            {step}m
+            {step > 0 ? `+${step}` : `${step}`}m
           </button>
         ))}
       </div>
