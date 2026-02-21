@@ -531,11 +531,14 @@ export default function Map({
 
     map.on("style.load", () => {
       loadedRef.current = true;
-      initializeMapLayers(map);
-      bindEvents(map);
 
+      // Terrain MUST be set up before overlay layers are added so that
+      // fill layers render on top of the 3D surface, not behind it.
       const curMode = modeRef.current;
       setupTerrain(map, terrainExaggeration(curMode));
+
+      initializeMapLayers(map);
+      bindEvents(map);
 
       if (shouldSuppressLabels(curMode, minimalLabelsRef.current)) {
         setTimeout(() => suppressLabels(map, true), 100);
