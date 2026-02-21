@@ -1,4 +1,11 @@
 import "./globals.css";
+import { Inter } from "next/font/google";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
 
 export const metadata = {
   title: "Substrata",
@@ -11,8 +18,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="bg-neutral-950 text-neutral-100 antialiased">
+    <html lang="en" className={inter.variable}>
+      <body className="font-sans bg-zinc-950 text-zinc-100 antialiased">
         {children}
       </body>
     </html>
