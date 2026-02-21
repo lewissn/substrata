@@ -25,7 +25,10 @@ export default function FloatingControls({
   if (sheetSnap !== "collapsed") return null;
 
   return (
-    <div className="fixed bottom-[108px] right-3 z-20 flex flex-col gap-2">
+    <div
+      className="fixed right-3 z-20 flex flex-col gap-2"
+      style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 108px)" }}
+    >
       {/* List toggle */}
       <button
         onClick={onOpenFeed}

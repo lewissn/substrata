@@ -33,7 +33,7 @@ export default function MobileSearchBar({
           "shadow-[0_12px_40px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)]",
           "border transition-colors duration-200",
           focused
-            ? "border-[rgba(var(--accent),0.32)]"
+            ? "border-[rgba(44,111,116,0.45)]"
             : "border-[rgba(255,255,255,0.10)]",
         ].join(" ")}
       >
@@ -67,7 +67,7 @@ export default function MobileSearchBar({
         <button
           onClick={onSearchArea}
           disabled={loading}
-          className="flex-shrink-0 px-4 py-3.5 text-[13px] font-semibold text-[rgba(var(--accent),0.85)] hover:text-[rgba(var(--accent),1)] active:opacity-60 transition-opacity disabled:opacity-40 whitespace-nowrap"
+          className="flex-shrink-0 px-4 py-3.5 text-[13px] font-semibold text-[#89CDD1] hover:text-[#B0E5E8] active:opacity-60 transition-opacity disabled:opacity-40 whitespace-nowrap"
           aria-label="Search this area"
         >
           {loading ? "···" : "Search"}
