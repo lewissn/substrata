@@ -5,6 +5,7 @@ import DesktopLayout from "@/components/layouts/DesktopLayout";
 import MobileLayout from "@/components/layouts/MobileLayout";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import type { Era, PlaceCard, PlaceKind, PlaceSource } from "@/domain/placeCard";
+import type { MapTheme } from "@/components/Map";
 import { scoreCard } from "@/domain/rank";
 import { dedupe } from "@/domain/dedupe";
 import { eraFromMa } from "@/domain/time";
@@ -35,6 +36,9 @@ export default function Home() {
   // --- Deep Time ---
   const [deepTimeEnabled, setDeepTimeEnabled] = useState(false);
   const [ma, setMa] = useState(0);
+
+  // --- Map theme ---
+  const [mapTheme, setMapTheme] = useState<MapTheme>("terrain");
 
   // --- Overlays ---
   const [seaLevelOverride, setSeaLevelOverride] = useState<number | null>(null);
@@ -324,6 +328,8 @@ export default function Home() {
     coastlineGeoJSON,
     center,
     onCenterChange: setMapCenter,
+    mapTheme,
+    onMapThemeChange: setMapTheme,
     nearbyFossilCount,
     onSurpriseMe: handleSurpriseMe,
   };

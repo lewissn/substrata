@@ -35,6 +35,7 @@ export default function MobileLayout(props: LayoutProps) {
     paleoOpacity, onPaleoOpacityChange,
     paleoData, coastlineGeoJSON,
     center, onCenterChange,
+    mapTheme, onMapThemeChange,
     nearbyFossilCount, onSurpriseMe,
   } = props;
 
@@ -123,6 +124,7 @@ export default function MobileLayout(props: LayoutProps) {
         overlayBoost={overlayBoost}
         paleoEnabled={deepTimeEnabled ? paleoEnabled : false}
         paleoOpacity={paleoOpacity}
+        mapTheme={mapTheme}
       />
 
       {/* ── Active overlays indicator ── */}
@@ -211,6 +213,8 @@ export default function MobileLayout(props: LayoutProps) {
             hasActiveFilters={hasActiveFilters}
             onResetFilters={onResetFilters}
             hasPbdb={cards.some((c) => c.source === "pbdb")}
+            mapTheme={mapTheme}
+            onMapThemeChange={onMapThemeChange}
           />
         )}
       </BottomSheet>
