@@ -1,9 +1,12 @@
 import type mapboxgl from "mapbox-gl";
 import type { OverlayModule, OverlayParams } from "./types";
+import { effectiveSeaLevel } from "./seaLevel";
 
 // ---------------------------------------------------------------------------
 // Paleogeography Overlay
 // Renders documentary-style land/ocean coloring using GPlates coastline data.
+// Ocean and land colors respond to sea level — deeper/more saturated at high
+// sea levels (Cretaceous +170m), paler/shallower at low (LGM -120m).
 //
 // Layers (bottom to top):
 //   1. Ocean fill — world-extent polygon, deep blue
@@ -22,28 +25,78 @@ const LAND_FILL = "paleo-geo-land-fill";
 const LAND_BORDER = "paleo-geo-land-border";
 
 // ---------------------------------------------------------------------------
-// Era-based coloring — subtle tonal shifts across geological time
+// Utilities
 // ---------------------------------------------------------------------------
 
-function oceanColor(ma: number): string {
-  if (ma < 66) return "rgba(18,48,78,0.92)";   // Cenozoic — cool blue
-  if (ma < 252) return "rgba(15,45,72,0.92)";   // Mesozoic — slightly deeper
-  if (ma < 540) return "rgba(20,42,68,0.92)";   // Paleozoic — muted teal-blue
-  return "rgba(22,40,62,0.90)";                  // Precambrian — darkest
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
 }
 
-function landColor(ma: number): string {
-  if (ma < 66) return "rgba(175,155,115,0.85)";  // Cenozoic — warm sand
-  if (ma < 252) return "rgba(165,145,100,0.85)";  // Mesozoic — warm khaki
-  if (ma < 540) return "rgba(155,135,105,0.82)";  // Paleozoic — dusty tan
-  return "rgba(145,130,110,0.80)";                 // Precambrian — muted earth
+/**
+ * Normalize sea level to [-1, +1].
+ * -120m → -1.0,  0m → 0.0,  +170m → +1.0
+ */
+function seaLevelFactor(params: OverlayParams): number {
+  const sl = effectiveSeaLevel(params);
+  if (sl <= 0) return Math.max(-1, sl / 120);
+  return Math.min(1, sl / 170);
 }
 
-function borderColor(ma: number): string {
-  if (ma < 66) return "rgba(140,120,80,0.60)";
-  if (ma < 252) return "rgba(135,115,75,0.55)";
-  if (ma < 540) return "rgba(130,110,80,0.50)";
-  return "rgba(125,110,85,0.45)";
+// ---------------------------------------------------------------------------
+// Sea-level-responsive coloring
+// Base colors shift by era; sea level factor adjusts saturation/depth.
+//   High sea level (+1): ocean deeper/more saturated, land cooler/less prominent
+//   Low sea level  (-1): ocean paler/washed-out, land warmer/bolder
+// ---------------------------------------------------------------------------
+
+function oceanColor(ma: number, slf: number): string {
+  // Era base: [R, G, B, A]
+  let base: [number, number, number, number];
+  if (ma < 66)       base = [18, 48, 78, 0.92];   // Cenozoic — cool blue
+  else if (ma < 252) base = [15, 45, 72, 0.92];   // Mesozoic — slightly deeper
+  else if (ma < 540) base = [20, 42, 68, 0.92];   // Paleozoic — muted teal-blue
+  else               base = [22, 40, 62, 0.90];   // Precambrian — darkest
+
+  // High sea level: R↓ G↓ B↑ A↑ (deeper blue)
+  // Low sea level:  R↑ G↑ B↓ A↓ (paler, washed out)
+  const r = Math.round(clamp(base[0] + slf * -7, 0, 255));
+  const g = Math.round(clamp(base[1] + slf * -7, 0, 255));
+  const b = Math.round(clamp(base[2] + slf * 10, 0, 255));
+  const a = clamp(base[3] + slf * 0.07, 0, 1);
+
+  return `rgba(${r},${g},${b},${a.toFixed(2)})`;
+}
+
+function landColor(ma: number, slf: number): string {
+  let base: [number, number, number, number];
+  if (ma < 66)       base = [175, 155, 115, 0.85];  // Cenozoic — warm sand
+  else if (ma < 252) base = [165, 145, 100, 0.85];  // Mesozoic — warm khaki
+  else if (ma < 540) base = [155, 135, 105, 0.82];  // Paleozoic — dusty tan
+  else               base = [145, 130, 110, 0.80];  // Precambrian — muted earth
+
+  // High sea level: cooler, less prominent (more flooding)
+  // Low sea level:  warmer, bolder (more exposed continental shelf)
+  const r = Math.round(clamp(base[0] + slf * -8, 0, 255));
+  const g = Math.round(clamp(base[1] + slf * -5, 0, 255));
+  const b = Math.round(clamp(base[2] + slf * 3, 0, 255));
+  const a = clamp(base[3] + slf * -0.06, 0, 1);
+
+  return `rgba(${r},${g},${b},${a.toFixed(2)})`;
+}
+
+function borderColor(ma: number, slf: number): string {
+  let base: [number, number, number, number];
+  if (ma < 66)       base = [140, 120, 80, 0.60];
+  else if (ma < 252) base = [135, 115, 75, 0.55];
+  else if (ma < 540) base = [130, 110, 80, 0.50];
+  else               base = [125, 110, 85, 0.45];
+
+  const r = Math.round(clamp(base[0] + slf * -5, 0, 255));
+  const g = Math.round(clamp(base[1] + slf * -3, 0, 255));
+  const b = Math.round(clamp(base[2] + slf * 2, 0, 255));
+  const a = clamp(base[3] + slf * -0.04, 0, 1);
+
+  return `rgba(${r},${g},${b},${a.toFixed(2)})`;
 }
 
 // ---------------------------------------------------------------------------
@@ -82,6 +135,7 @@ export const paleogeographyOverlay: OverlayModule = {
 
     const o = effectiveOpacity(params);
     const ma = params.ma;
+    const slf = seaLevelFactor(params);
 
     // Layer 1: Ocean fill
     if (!map.getLayer(OCEAN_FILL) && map.getSource(OCEAN_SOURCE)) {
@@ -90,9 +144,10 @@ export const paleogeographyOverlay: OverlayModule = {
         type: "fill",
         source: OCEAN_SOURCE,
         paint: {
-          "fill-color": oceanColor(ma),
+          "fill-color": oceanColor(ma, slf),
           "fill-opacity": o,
           "fill-opacity-transition": { duration: 400, delay: 0 },
+          "fill-color-transition": { duration: 300, delay: 0 },
         },
       });
     }
@@ -104,9 +159,10 @@ export const paleogeographyOverlay: OverlayModule = {
         type: "fill",
         source: COASTLINE_SOURCE,
         paint: {
-          "fill-color": landColor(ma),
+          "fill-color": landColor(ma, slf),
           "fill-opacity": o,
           "fill-opacity-transition": { duration: 400, delay: 0 },
+          "fill-color-transition": { duration: 300, delay: 0 },
         },
       });
     }
@@ -118,10 +174,11 @@ export const paleogeographyOverlay: OverlayModule = {
         type: "line",
         source: COASTLINE_SOURCE,
         paint: {
-          "line-color": borderColor(ma),
+          "line-color": borderColor(ma, slf),
           "line-width": 1.2,
           "line-opacity": o > 0 ? Math.min(1, o + 0.1) : 0,
           "line-opacity-transition": { duration: 400, delay: 0 },
+          "line-color-transition": { duration: 300, delay: 0 },
         },
       });
     }
@@ -130,19 +187,20 @@ export const paleogeographyOverlay: OverlayModule = {
   update(map, params) {
     const o = effectiveOpacity(params);
     const ma = params.ma;
+    const slf = seaLevelFactor(params);
 
     if (map.getLayer(OCEAN_FILL)) {
-      map.setPaintProperty(OCEAN_FILL, "fill-color", oceanColor(ma));
+      map.setPaintProperty(OCEAN_FILL, "fill-color", oceanColor(ma, slf));
       map.setPaintProperty(OCEAN_FILL, "fill-opacity", o);
     }
 
     if (map.getLayer(LAND_FILL)) {
-      map.setPaintProperty(LAND_FILL, "fill-color", landColor(ma));
+      map.setPaintProperty(LAND_FILL, "fill-color", landColor(ma, slf));
       map.setPaintProperty(LAND_FILL, "fill-opacity", o);
     }
 
     if (map.getLayer(LAND_BORDER)) {
-      map.setPaintProperty(LAND_BORDER, "line-color", borderColor(ma));
+      map.setPaintProperty(LAND_BORDER, "line-color", borderColor(ma, slf));
       map.setPaintProperty(LAND_BORDER, "line-opacity", o > 0 ? Math.min(1, o + 0.1) : 0);
     }
   },
