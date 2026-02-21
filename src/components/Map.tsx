@@ -13,6 +13,7 @@ type Props = {
   selectedId?: string | null;
   onSelect?: (card: PlaceCard) => void;
   focusOffsetPx?: number;
+  ma?: number; // Deep Time Ma for style effects
 };
 
 const SOURCE_ID = "places";
@@ -21,19 +22,31 @@ const LAYER_CLUSTER_COUNT = "cluster-count";
 const LAYER_POINTS = "unclustered-points";
 const LAYER_SELECTED_GLOW = "selected-point-glow";
 const LAYER_SELECTED = "selected-point";
+const LAYER_TIME_TINT = "time-tint-overlay";
 
-// Era-based colors as a Mapbox match expression value
-// These map to ERA_COLORS in era.ts but defined here as raw strings for GL expressions
+// Era-based marker colours
 const ERA_COLOR_MATCH: mapboxgl.Expression = [
   "match",
   ["get", "era"],
-  "geological",   "rgba(180,70,70,0.92)",
-  "prehistoric",  "rgba(185,140,80,0.92)",
-  "ancient",      "rgba(212,168,80,0.92)",
-  "medieval",     "rgba(120,148,180,0.92)",
-  "modern",       "rgba(160,160,170,0.88)",
-  /* default */   "rgba(160,160,170,0.88)",
+  "geological", "rgba(180,70,70,0.92)",
+  "prehistoric", "rgba(185,140,80,0.92)",
+  "ancient", "rgba(212,168,80,0.92)",
+  "medieval", "rgba(120,148,180,0.92)",
+  "modern", "rgba(160,160,170,0.88)",
+  /* default */ "rgba(160,160,170,0.88)",
 ];
+
+// Time-based map tint: subtle background overlay that shifts with Ma
+function timeTintColor(ma: number): string {
+  if (ma <= 0) return "rgba(0,0,0,0)";
+  if (ma < 0.03) return "rgba(100,140,180,0.06)"; // LGM: cool blue
+  if (ma < 0.2) return "rgba(80,120,160,0.05)"; // Pleistocene: cool
+  if (ma < 3) return "rgba(90,110,80,0.05)"; // Pliocene/Miocene: warm green
+  if (ma < 66) return "rgba(80,110,60,0.06)"; // Mesozoic: warm green
+  if (ma < 252) return "rgba(100,80,60,0.06)"; // Late Paleozoic: earthy
+  if (ma < 540) return "rgba(70,70,100,0.06)"; // Early Paleozoic: deep blue
+  return "rgba(60,50,70,0.05)"; // Precambrian: muted purple
+}
 
 export default function Map({
   center,
@@ -42,6 +55,7 @@ export default function Map({
   selectedId,
   onSelect,
   focusOffsetPx = 180,
+  ma = 0,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -52,25 +66,23 @@ export default function Map({
     cardByIdRef.current = new globalThis.Map(cards.map((c) => [c.id, c]));
   }, [cards]);
 
-  const geojson = useMemo(() => {
-    return {
-      type: "FeatureCollection" as const,
-      features: cards.map((c) => ({
-        type: "Feature" as const,
-        geometry: {
-          type: "Point" as const,
-          coordinates: [c.coords.lng, c.coords.lat],
-        },
-        properties: {
-          id: c.id,
-          title: c.title,
-          source: c.source,
-          kind: c.kind,
-          era: c.era,
-        },
-      })),
-    };
-  }, [cards]);
+  const geojson = useMemo(() => ({
+    type: "FeatureCollection" as const,
+    features: cards.map((c) => ({
+      type: "Feature" as const,
+      geometry: {
+        type: "Point" as const,
+        coordinates: [c.coords.lng, c.coords.lat],
+      },
+      properties: {
+        id: c.id,
+        title: c.title,
+        source: c.source,
+        kind: c.kind,
+        era: c.era,
+      },
+    })),
+  }), [cards]);
 
   // Init map once
   useEffect(() => {
@@ -95,7 +107,32 @@ export default function Map({
     map.on("load", () => {
       loadedRef.current = true;
 
-      // Clustered GeoJSON source
+      // ── Time tint overlay (full-viewport color layer) ──
+      // This is a background layer that adds a subtle tint to the map when
+      // in Deep Time mode. It uses the Mapbox fill layer on a world polygon.
+      map.addSource("time-tint-src", {
+        type: "geojson",
+        data: {
+          type: "Feature",
+          geometry: {
+            type: "Polygon",
+            coordinates: [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
+          },
+          properties: {},
+        },
+      });
+
+      map.addLayer({
+        id: LAYER_TIME_TINT,
+        type: "fill",
+        source: "time-tint-src",
+        paint: {
+          "fill-color": "rgba(0,0,0,0)",
+          "fill-opacity": 1,
+        },
+      });
+
+      // ── Clustered GeoJSON source ──
       if (!map.getSource(SOURCE_ID)) {
         map.addSource(SOURCE_ID, {
           type: "geojson",
@@ -106,7 +143,7 @@ export default function Map({
         });
       }
 
-      // ── Cluster circles (softer, slightly translucent) ──
+      // ── Cluster circles ──
       if (!map.getLayer(LAYER_CLUSTERS)) {
         map.addLayer({
           id: LAYER_CLUSTERS,
@@ -115,15 +152,8 @@ export default function Map({
           filter: ["has", "point_count"],
           paint: {
             "circle-radius": [
-              "step",
-              ["get", "point_count"],
-              13,
-              10,
-              17,
-              30,
-              22,
-              100,
-              28,
+              "step", ["get", "point_count"],
+              13, 10, 17, 30, 22, 100, 28,
             ],
             "circle-color": "rgba(60,60,70,0.82)",
             "circle-stroke-width": 1,
@@ -145,9 +175,7 @@ export default function Map({
             "text-size": 11,
             "text-font": ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
           },
-          paint: {
-            "text-color": "rgba(200,200,210,0.90)",
-          },
+          paint: { "text-color": "rgba(200,200,210,0.90)" },
         });
       }
 
@@ -168,7 +196,7 @@ export default function Map({
         });
       }
 
-      // ── Selected — outer glow ring ──
+      // ── Selected — outer glow ──
       if (!map.getLayer(LAYER_SELECTED_GLOW)) {
         map.addLayer({
           id: LAYER_SELECTED_GLOW,
@@ -201,7 +229,7 @@ export default function Map({
         });
       }
 
-      // ── Click cluster → zoom in ──
+      // ── Cluster click → zoom ──
       map.on("click", LAYER_CLUSTERS, (e) => {
         const feature = e.features?.[0];
         if (!feature) return;
@@ -280,6 +308,14 @@ export default function Map({
     if (map.getLayer(LAYER_SELECTED)) map.setFilter(LAYER_SELECTED, filter);
     if (map.getLayer(LAYER_SELECTED_GLOW)) map.setFilter(LAYER_SELECTED_GLOW, filter);
   }, [selectedId]);
+
+  // Update time-tint overlay based on Ma
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loadedRef.current) return;
+    if (!map.getLayer(LAYER_TIME_TINT)) return;
+    map.setPaintProperty(LAYER_TIME_TINT, "fill-color", timeTintColor(ma));
+  }, [ma]);
 
   // Fly to center
   useEffect(() => {

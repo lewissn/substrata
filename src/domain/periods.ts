@@ -1,0 +1,257 @@
+// ---------------------------------------------------------------------------
+// Curated dataset of geological periods with environmental context.
+// Used by ContextPanel to explain "what was the world like at time X?"
+// ---------------------------------------------------------------------------
+
+export type GeoPeriod = {
+  name: string;
+  maStart: number;
+  maEnd: number;
+  era: string; // eon/era name for grouping
+  oxygen: string; // relative O₂ level
+  co2: string; // relative CO₂ level
+  seaLevel: string; // relative to present
+  climate: string; // one-line climate summary
+  summary: string; // 1–2 sentence "world feel"
+  life: string; // representative organisms/biomes
+  color: string; // accent colour for UI
+};
+
+export const PERIODS: GeoPeriod[] = [
+  {
+    name: "Holocene",
+    maStart: 0.012,
+    maEnd: 0,
+    era: "Cenozoic",
+    oxygen: "~21%",
+    co2: "280–420 ppm",
+    seaLevel: "Near present",
+    climate: "Interglacial warmth, stable for civilisation",
+    summary: "The stable warm period that allowed human civilisation to flourish. Agriculture, cities, and written history all emerged in this window.",
+    life: "Modern ecosystems, megafauna recently extinct, human dominance",
+    color: "#a0a0b0",
+  },
+  {
+    name: "Pleistocene",
+    maStart: 2.6,
+    maEnd: 0.012,
+    era: "Cenozoic",
+    oxygen: "~21%",
+    co2: "180–280 ppm",
+    seaLevel: "−120m to +6m (cyclic)",
+    climate: "Repeated glacial–interglacial cycles, ice sheets advance and retreat",
+    summary: "The age of ice ages. Continental glaciers repeatedly covered northern continents. Sea levels dropped dramatically, exposing land bridges. Early humans migrated across shifting landscapes.",
+    life: "Mammoths, sabre-tooth cats, Neanderthals, early Homo sapiens, megafauna",
+    color: "#7894b4",
+  },
+  {
+    name: "Pliocene",
+    maStart: 5.3,
+    maEnd: 2.6,
+    era: "Cenozoic",
+    oxygen: "~21%",
+    co2: "350–400 ppm",
+    seaLevel: "+10–25m",
+    climate: "Warm, gradually cooling toward ice ages",
+    summary: "A warm world slowly cooling. The Isthmus of Panama closed, reshaping ocean currents. Grasslands expanded. Early hominids walked upright in Africa.",
+    life: "Australopithecus, grazing mammals, expanding grasslands",
+    color: "#b98c50",
+  },
+  {
+    name: "Miocene",
+    maStart: 23,
+    maEnd: 5.3,
+    era: "Cenozoic",
+    oxygen: "~21%",
+    co2: "300–500 ppm",
+    seaLevel: "+25–40m",
+    climate: "Warm, gradual global cooling",
+    summary: "A warm world with vast grasslands and kelp forests. The Himalayas rose, reshaping Asian monsoons. Apes diversified across Africa and Eurasia.",
+    life: "Great apes, horses, whales, grasslands, kelp forests",
+    color: "#b98c50",
+  },
+  {
+    name: "Oligocene",
+    maStart: 34,
+    maEnd: 23,
+    era: "Cenozoic",
+    oxygen: "~21%",
+    co2: "400–700 ppm",
+    seaLevel: "+40–55m",
+    climate: "Cooling from Eocene hothouse, Antarctic ice sheet forms",
+    summary: "Antarctica became isolated and began freezing. The world shifted from greenhouse to icehouse. Modern mammal families diversified.",
+    life: "Early cats, dogs, bears; forests give way to grasslands",
+    color: "#b98c50",
+  },
+  {
+    name: "Eocene",
+    maStart: 56,
+    maEnd: 34,
+    era: "Cenozoic",
+    oxygen: "~21%",
+    co2: "700–2000 ppm",
+    seaLevel: "+70–100m",
+    climate: "Extreme warmth, no polar ice, tropical poles",
+    summary: "The hottest period in the last 65 million years. Crocodilians near the Arctic. Forests covered Antarctica. Modern mammal orders emerged.",
+    life: "Early horses, whales returning to sea, tropical forests worldwide",
+    color: "#d4a850",
+  },
+  {
+    name: "Paleocene",
+    maStart: 66,
+    maEnd: 56,
+    era: "Cenozoic",
+    oxygen: "~21%",
+    co2: "500–700 ppm",
+    seaLevel: "+60–80m",
+    climate: "Warm recovery after asteroid impact",
+    summary: "Life recovered from the mass extinction that ended the dinosaurs. Mammals diversified rapidly into vacated ecological niches. Birds became the dominant dinosaur survivors.",
+    life: "Small mammals diversifying, archaic hoofed mammals, early primates",
+    color: "#d4a850",
+  },
+  {
+    name: "Cretaceous",
+    maStart: 145,
+    maEnd: 66,
+    era: "Mesozoic",
+    oxygen: "~21–30%",
+    co2: "600–2000 ppm",
+    seaLevel: "+100–250m",
+    climate: "Warm greenhouse, high sea levels, vast interior seas",
+    summary: "The golden age of dinosaurs. Flowering plants appeared and transformed terrestrial ecosystems. Ended with the Chicxulub asteroid impact — one of Earth's five great mass extinctions.",
+    life: "T. rex, Triceratops, flowering plants, mosasaurs, ammonites",
+    color: "#8a9e4a",
+  },
+  {
+    name: "Jurassic",
+    maStart: 201,
+    maEnd: 145,
+    era: "Mesozoic",
+    oxygen: "~26%",
+    co2: "1000–2500 ppm",
+    seaLevel: "+75–150m",
+    climate: "Warm and humid, no polar ice caps",
+    summary: "Pangaea began breaking apart. Dinosaurs dominated every continent. The first birds evolved from small theropod dinosaurs. Vast shallow seas covered continental interiors.",
+    life: "Sauropods, Allosaurus, Archaeopteryx, marine reptiles, cycads and conifers",
+    color: "#6a8e5a",
+  },
+  {
+    name: "Triassic",
+    maStart: 252,
+    maEnd: 201,
+    era: "Mesozoic",
+    oxygen: "~16%",
+    co2: "1000–3000 ppm",
+    seaLevel: "Near present",
+    climate: "Hot and arid, extreme seasons on Pangaea",
+    summary: "Life recovered from the greatest mass extinction in history. The first dinosaurs, mammals, and pterosaurs appeared. Pangaea was intact — one vast supercontinent with brutal interior deserts.",
+    life: "First dinosaurs, first mammals, therapsids, conifers, vast deserts",
+    color: "#8a6e5a",
+  },
+  {
+    name: "Permian",
+    maStart: 299,
+    maEnd: 252,
+    era: "Paleozoic",
+    oxygen: "~23%",
+    co2: "400–3000 ppm",
+    seaLevel: "Variable, dropping",
+    climate: "Ice age ending, then extreme warming",
+    summary: "Pangaea fully assembled. Reptiles dominated land. Ended with the Great Dying — the worst mass extinction in Earth's history, killing 96% of marine species.",
+    life: "Synapsids (mammal ancestors), Dimetrodon, early reptiles, seed ferns",
+    color: "#b44646",
+  },
+  {
+    name: "Carboniferous",
+    maStart: 359,
+    maEnd: 299,
+    era: "Paleozoic",
+    oxygen: "~35%",
+    co2: "350–800 ppm",
+    seaLevel: "+20–60m (cyclic)",
+    climate: "Tropical swamp forests, glaciation in south",
+    summary: "Oxygen reached the highest levels in Earth's history. Giant insects flew through vast tropical swamp forests. The coal we burn today formed from these forests. An ice age gripped the southern hemisphere.",
+    life: "Giant dragonflies (70cm wingspan), huge millipedes, tree ferns, seed ferns, early amphibians",
+    color: "#4a7a4a",
+  },
+  {
+    name: "Devonian",
+    maStart: 419,
+    maEnd: 359,
+    era: "Paleozoic",
+    oxygen: "~15%",
+    co2: "2000–4000 ppm",
+    seaLevel: "+60–100m",
+    climate: "Warm, CO₂ declining as forests spread",
+    summary: "The age of fishes — every major group of fish diversified. The first forests appeared and transformed the atmosphere. The first tetrapods crawled onto land.",
+    life: "Armoured fish, sharks, first forests, first land vertebrates, trilobites",
+    color: "#5a8a8a",
+  },
+  {
+    name: "Silurian",
+    maStart: 444,
+    maEnd: 419,
+    era: "Paleozoic",
+    oxygen: "~14%",
+    co2: "2000–4500 ppm",
+    seaLevel: "+50–100m",
+    climate: "Warm, ice caps melting after Ordovician glaciation",
+    summary: "Life recovered from a mass extinction. The first plants and arthropods colonised land. Coral reefs expanded in warm shallow seas. Jawed fish appeared.",
+    life: "First land plants, sea scorpions, jawless fish, coral reefs",
+    color: "#6a8aaa",
+  },
+  {
+    name: "Ordovician",
+    maStart: 485,
+    maEnd: 444,
+    era: "Paleozoic",
+    oxygen: "~14%",
+    co2: "4000–7000 ppm",
+    seaLevel: "+100–200m",
+    climate: "Warm then cooling; major ice age at end",
+    summary: "Marine life diversified spectacularly — the Great Ordovician Biodiversification Event. Ended with a severe ice age and mass extinction as Gondwana drifted over the South Pole.",
+    life: "Trilobites, brachiopods, bryozoans, first corals, nautiloids",
+    color: "#6a7a9a",
+  },
+  {
+    name: "Cambrian",
+    maStart: 539,
+    maEnd: 485,
+    era: "Paleozoic",
+    oxygen: "~12–15%",
+    co2: "4000–7000 ppm",
+    seaLevel: "+30–90m",
+    climate: "Warm greenhouse, no ice caps",
+    summary: "The Cambrian Explosion — complex animal life appeared suddenly in the fossil record. Most modern animal phyla originated in this period. The first eyes evolved, triggering an evolutionary arms race.",
+    life: "Trilobites, Anomalocaris, Hallucigenia, sponges, early chordates",
+    color: "#8a7a6a",
+  },
+  {
+    name: "Ediacaran",
+    maStart: 635,
+    maEnd: 539,
+    era: "Proterozoic",
+    oxygen: "~2–10%",
+    co2: "Unknown (high)",
+    seaLevel: "Variable",
+    climate: "Emerging from Snowball Earth, warming",
+    summary: "The first complex multicellular life appeared after the Snowball Earth glaciations melted. Strange, soft-bodied organisms unlike anything alive today covered the sea floor.",
+    life: "Dickinsonia, Charnia, Kimberella — alien-looking soft-bodied organisms",
+    color: "#7a6a8a",
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Lookup helpers
+// ---------------------------------------------------------------------------
+
+/** Find the geological period for a given Ma value. */
+export function periodForMa(ma: number): GeoPeriod | null {
+  return PERIODS.find((p) => ma <= p.maStart && ma >= p.maEnd) ?? null;
+}
+
+/** Find the period by name (case-insensitive). */
+export function periodByName(name: string): GeoPeriod | null {
+  const lower = name.toLowerCase();
+  return PERIODS.find((p) => p.name.toLowerCase() === lower) ?? null;
+}

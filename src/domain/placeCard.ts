@@ -1,4 +1,4 @@
-export type PlaceSource = "wikipedia" | "osm" | "future";
+export type PlaceSource = "wikipedia" | "osm" | "pbdb" | "gplates" | "custom";
 
 export type PlaceKind =
   | "article"
@@ -14,7 +14,8 @@ export type PlaceKind =
   | "megalith"
   | "volcano"
   | "impact_crater"
-  | "fault_line";
+  | "fault_line"
+  | "fossil_occurrence";
 
 export type Era =
   | "modern"
@@ -22,6 +23,13 @@ export type Era =
   | "ancient"
   | "prehistoric"
   | "geological";
+
+export type TimeSpan = {
+  startYear?: number; // negative = BCE; positive = CE
+  endYear?: number;
+  maStart?: number; // million years ago (start = older)
+  maEnd?: number; // million years ago (end = younger)
+};
 
 export type PlaceCard = {
   id: string;
@@ -35,6 +43,6 @@ export type PlaceCard = {
   url?: string;
   tags?: string[];
   era: Era;
-  yearStart?: number; // BCE allowed (negative)
-  yearEnd?: number;
+  time?: TimeSpan;
+  confidence?: number; // 0–1 heuristic confidence for era/time classification
 };

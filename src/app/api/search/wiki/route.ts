@@ -16,7 +16,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Missing/invalid lat,lng" }, { status: 400 });
   }
 
-  // 1) GeoSearch for nearby pages
   const geoUrl =
     `${WIKI}?action=query&format=json&origin=*` +
     `&list=geosearch&gscoord=${lat}%7C${lng}` +
@@ -34,7 +33,6 @@ export async function GET(req: Request) {
 
   const pageIds = hits.map((h) => h.pageid).join("|");
 
-  // 2) Fetch extracts + thumbnails for those pages
   const detailsUrl =
     `${WIKI}?action=query&format=json&origin=*` +
     `&pageids=${pageIds}` +
@@ -63,8 +61,8 @@ export async function GET(req: Request) {
     };
     return {
       id: `wiki:${h.pageid}`,
-      source: "wikipedia",
-      kind: "article",
+      source: "wikipedia" as const,
+      kind: "article" as const,
       title: h.title,
       coords: { lat: h.lat, lng: h.lon },
       distanceM: h.dist,
