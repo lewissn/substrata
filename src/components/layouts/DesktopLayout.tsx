@@ -6,7 +6,7 @@ import ContextPanel from "@/components/ContextPanel";
 import Feed from "@/components/Feed";
 import Drawer from "@/components/Drawer";
 import { Chip, KIND_CHIPS } from "@/components/ui/Chip";
-import { MapLegend } from "@/components/ui/MapLegend";
+import { ActiveOverlays } from "@/components/ui/ActiveOverlays";
 import type { LayoutProps } from "./LayoutProps";
 
 // ---------------------------------------------------------------------------
@@ -24,6 +24,8 @@ export default function DesktopLayout(props: LayoutProps) {
     activeEra, onEraChange,
     deepTimeEnabled, onDeepTimeToggle,
     ma, onMaChange,
+    seaLevelOverride, onSeaLevelChange,
+    overlayBoost, onOverlayBoostToggle,
     paleoData, coastlineGeoJSON,
     center, onCenterChange,
     nearbyFossilCount, onSurpriseMe,
@@ -82,6 +84,10 @@ export default function DesktopLayout(props: LayoutProps) {
             onDeepTimeToggle={onDeepTimeToggle}
             ma={ma}
             onMaChange={onMaChange}
+            seaLevelOverride={seaLevelOverride}
+            onSeaLevelChange={onSeaLevelChange}
+            overlayBoost={overlayBoost}
+            onOverlayBoostToggle={onOverlayBoostToggle}
           />
 
           {/* ── Context panel ── */}
@@ -159,12 +165,17 @@ export default function DesktopLayout(props: LayoutProps) {
             coastlineGeoJSON={deepTimeEnabled ? coastlineGeoJSON : null}
             activeEra={activeEra}
             deepTimeEnabled={deepTimeEnabled}
+            seaLevelOverride={seaLevelOverride}
+            overlayBoost={overlayBoost}
           />
 
-          {/* ── Map legend ── */}
-          {deepTimeEnabled && ma > 0 && (
-            <MapLegend ma={ma} hasCoastlines={!!coastlineGeoJSON} />
-          )}
+          {/* ── Active overlays indicator ── */}
+          <ActiveOverlays
+            ma={deepTimeEnabled ? ma : 0}
+            deepTimeEnabled={deepTimeEnabled}
+            seaLevelOverride={seaLevelOverride}
+            overlayBoost={overlayBoost}
+          />
 
           {/* ── Attribution footer ── */}
           <div className="absolute bottom-1 right-2 text-[8px] text-zinc-700 pointer-events-none z-10">

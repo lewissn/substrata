@@ -5,6 +5,8 @@ import mapboxgl from "mapbox-gl";
 import type { PlaceCard } from "@/domain/placeCard";
 import type { Era } from "@/domain/placeCard";
 import { lgmIceGeoJSON, lgmExposedLandGeoJSON } from "@/domain/lgm";
+import { addAllOverlays, updateAllOverlays } from "@/layers/overlays/OverlayController";
+import type { OverlayParams } from "@/layers/overlays/OverlayController";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
@@ -27,10 +29,12 @@ type Props = {
   deepTimeEnabled?: boolean;
   minimalLabels?: boolean;
   interactionEnabled?: boolean;
+  seaLevelOverride?: number | null;
+  overlayBoost?: boolean;
 };
 
 // ---------------------------------------------------------------------------
-// Constants — layer & source IDs
+// Constants — layer & source IDs (markers only; overlays managed by controller)
 // ---------------------------------------------------------------------------
 
 const SOURCE_ID = "places";
@@ -39,18 +43,13 @@ const LAYER_CLUSTER_COUNT = "cluster-count";
 const LAYER_POINTS = "unclustered-points";
 const LAYER_SELECTED_GLOW = "selected-point-glow";
 const LAYER_SELECTED = "selected-point";
-const LAYER_TIME_TINT = "time-tint-overlay";
 
-const SOURCE_ICE = "lgm-ice-src";
-const LAYER_ICE_FILL = "lgm-ice-fill";
-const LAYER_ICE_BORDER = "lgm-ice-border";
-const SOURCE_EXPOSED = "lgm-exposed-src";
-const LAYER_EXPOSED_FILL = "lgm-exposed-fill";
-const LAYER_EXPOSED_BORDER = "lgm-exposed-border";
-
+// Overlay-managed source/layer IDs (referenced for hover popups + coastline data)
 const SOURCE_COASTLINE = "paleo-coastline-src";
-const LAYER_COASTLINE_FILL = "paleo-coastline-fill";
-const LAYER_COASTLINE_BORDER = "paleo-coastline-border";
+const SOURCE_ICE = "lgm-ice-src";
+const SOURCE_EXPOSED = "lgm-exposed-src";
+const LAYER_ICE_FILL = "lgm-ice-fill";
+const LAYER_EXPOSED_FILL = "lgm-exposed-fill";
 
 // ---------------------------------------------------------------------------
 // Style mapping
@@ -79,37 +78,6 @@ const ERA_COLOR_MATCH: mapboxgl.Expression = [
   "modern", "rgba(160,160,170,0.88)",
   /* default */ "rgba(160,160,170,0.88)",
 ];
-
-// ---------------------------------------------------------------------------
-// Time-based map tint
-// ---------------------------------------------------------------------------
-
-function timeTintColor(ma: number): string {
-  if (ma <= 0) return "rgba(0,0,0,0)";
-  if (ma < 0.03) return "rgba(100,140,180,0.06)";
-  if (ma < 0.2) return "rgba(80,120,160,0.05)";
-  if (ma < 3) return "rgba(90,110,80,0.05)";
-  if (ma < 66) return "rgba(80,110,60,0.06)";
-  if (ma < 252) return "rgba(100,80,60,0.06)";
-  if (ma < 540) return "rgba(70,70,100,0.06)";
-  return "rgba(60,50,70,0.05)";
-}
-
-// ---------------------------------------------------------------------------
-// LGM helpers
-// ---------------------------------------------------------------------------
-
-function isLGMRange(ma: number): boolean {
-  return ma >= 0.015 && ma <= 0.03;
-}
-
-function lgmOpacity(ma: number): number {
-  if (!isLGMRange(ma)) return 0;
-  const center = 0.021;
-  const halfWidth = 0.009;
-  const dist = Math.abs(ma - center) / halfWidth;
-  return Math.max(0, 1 - dist * 0.6) * 0.55;
-}
 
 // ---------------------------------------------------------------------------
 // Mode resolution + per-mode config
@@ -235,6 +203,8 @@ export default function Map({
   deepTimeEnabled = false,
   minimalLabels = false,
   interactionEnabled = true,
+  seaLevelOverride = null,
+  overlayBoost = false,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -248,6 +218,8 @@ export default function Map({
   const selectedIdRef = useRef<string | null>(null);
   const maRef = useRef(0);
   const coastlineRef = useRef<GeoJSON.FeatureCollection | null>(null);
+  const seaLevelOverrideRef = useRef<number | null>(null);
+  const overlayBoostRef = useRef(false);
   const onSelectRef = useRef(onSelect);
   const onCenterChangeRef = useRef(onCenterChange);
   const modeRef = useRef<MapMode>("modern");
@@ -259,6 +231,8 @@ export default function Map({
   useEffect(() => { selectedIdRef.current = selectedId ?? null; }, [selectedId]);
   useEffect(() => { maRef.current = ma; }, [ma]);
   useEffect(() => { coastlineRef.current = coastlineGeoJSON ?? null; }, [coastlineGeoJSON]);
+  useEffect(() => { seaLevelOverrideRef.current = seaLevelOverride; }, [seaLevelOverride]);
+  useEffect(() => { overlayBoostRef.current = overlayBoost; }, [overlayBoost]);
   useEffect(() => { minimalLabelsRef.current = minimalLabels; }, [minimalLabels]);
   useEffect(() => {
     cardByIdRef.current = new globalThis.Map(cards.map((c) => [c.id, c]));
@@ -288,186 +262,136 @@ export default function Map({
   const mode = resolveMode(activeEra, deepTimeEnabled);
   useEffect(() => { modeRef.current = mode; }, [mode]);
 
+  // Build current overlay params
+  function currentOverlayParams(): OverlayParams {
+    return {
+      ma: maRef.current,
+      boost: overlayBoostRef.current ? 1.15 : 1.0,
+      seaLevelOverride: seaLevelOverrideRef.current,
+    };
+  }
+
+  // ── Initialize overlay data sources (needed before overlay controller) ──
+  function initializeOverlaySources(map: mapboxgl.Map) {
+    // Paleocoastline source (shared by seaLevel overlay)
+    if (!map.getSource(SOURCE_COASTLINE)) {
+      map.addSource(SOURCE_COASTLINE, {
+        type: "geojson",
+        data: (coastlineRef.current ?? EMPTY_FC) as any,
+      });
+    }
+
+    // LGM ice sheets source
+    if (!map.getSource(SOURCE_ICE)) {
+      map.addSource(SOURCE_ICE, { type: "geojson", data: lgmIceGeoJSON() as any });
+    }
+
+    // LGM exposed land source
+    if (!map.getSource(SOURCE_EXPOSED)) {
+      map.addSource(SOURCE_EXPOSED, { type: "geojson", data: lgmExposedLandGeoJSON() as any });
+    }
+  }
+
+  // ── Initialize marker sources + layers ──
+  function initializeMarkerLayers(map: mapboxgl.Map) {
+    // Clustered GeoJSON
+    if (!map.getSource(SOURCE_ID)) {
+      map.addSource(SOURCE_ID, {
+        type: "geojson", data: geojsonRef.current as any,
+        cluster: true, clusterMaxZoom: 14, clusterRadius: 40,
+      });
+    }
+
+    const m = modeRef.current;
+
+    // Cluster circles
+    if (!map.getLayer(LAYER_CLUSTERS)) {
+      map.addLayer({
+        id: LAYER_CLUSTERS, type: "circle", source: SOURCE_ID,
+        filter: ["has", "point_count"],
+        paint: {
+          "circle-radius": ["step", ["get", "point_count"], 13, 10, 17, 30, 22, 100, 28],
+          "circle-color": clusterColor(m),
+          "circle-stroke-width": 1,
+          "circle-stroke-color": clusterStrokeColor(m),
+          "circle-opacity": 0.88,
+        },
+      });
+    }
+
+    // Cluster count
+    if (!map.getLayer(LAYER_CLUSTER_COUNT)) {
+      map.addLayer({
+        id: LAYER_CLUSTER_COUNT, type: "symbol", source: SOURCE_ID,
+        filter: ["has", "point_count"],
+        layout: {
+          "text-field": ["get", "point_count_abbreviated"],
+          "text-size": 11,
+          "text-font": ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
+        },
+        paint: { "text-color": clusterTextColor(m) },
+      });
+    }
+
+    // Unclustered points
+    if (!map.getLayer(LAYER_POINTS)) {
+      map.addLayer({
+        id: LAYER_POINTS, type: "circle", source: SOURCE_ID,
+        filter: ["!", ["has", "point_count"]],
+        paint: {
+          "circle-radius": 5.5,
+          "circle-color": ERA_COLOR_MATCH,
+          "circle-stroke-width": 1.5,
+          "circle-stroke-color": pointStrokeColor(m),
+          "circle-opacity": markerOpacity(m),
+        },
+      });
+    }
+
+    // Selected glow
+    if (!map.getLayer(LAYER_SELECTED_GLOW)) {
+      map.addLayer({
+        id: LAYER_SELECTED_GLOW, type: "circle", source: SOURCE_ID,
+        filter: ["==", ["get", "id"], selectedIdRef.current ?? ""],
+        paint: {
+          "circle-radius": 16,
+          "circle-color": "rgba(250,192,94,0.0)",
+          "circle-stroke-width": selectedGlowStrokeWidth(m),
+          "circle-stroke-color": "rgba(250,192,94,0.28)",
+          "circle-opacity": 1,
+        },
+      });
+    }
+
+    // Selected centre
+    if (!map.getLayer(LAYER_SELECTED)) {
+      map.addLayer({
+        id: LAYER_SELECTED, type: "circle", source: SOURCE_ID,
+        filter: ["==", ["get", "id"], selectedIdRef.current ?? ""],
+        paint: {
+          "circle-radius": 8,
+          "circle-color": "rgba(250,192,94,0.30)",
+          "circle-stroke-width": 1.5,
+          "circle-stroke-color": "rgba(250,192,94,0.70)",
+        },
+      });
+    }
+  }
+
   // ── Initialize all custom sources + layers ──
   function initializeMapLayers(map: mapboxgl.Map) {
     if (initializingRef.current) return;
     initializingRef.current = true;
 
     try {
-      // Time tint
-      if (!map.getSource("time-tint-src")) {
-        map.addSource("time-tint-src", {
-          type: "geojson",
-          data: {
-            type: "Feature",
-            geometry: {
-              type: "Polygon",
-              coordinates: [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
-            },
-            properties: {},
-          },
-        });
-      }
-      if (!map.getLayer(LAYER_TIME_TINT)) {
-        map.addLayer({
-          id: LAYER_TIME_TINT,
-          type: "fill",
-          source: "time-tint-src",
-          paint: { "fill-color": timeTintColor(maRef.current), "fill-opacity": 1 },
-        });
-      }
+      // 1. Data sources for overlays (must exist before overlay controller adds layers)
+      initializeOverlaySources(map);
 
-      // Paleocoastline
-      if (!map.getSource(SOURCE_COASTLINE)) {
-        map.addSource(SOURCE_COASTLINE, {
-          type: "geojson",
-          data: (coastlineRef.current ?? EMPTY_FC) as any,
-        });
-      }
-      if (!map.getLayer(LAYER_COASTLINE_FILL)) {
-        map.addLayer({
-          id: LAYER_COASTLINE_FILL, type: "fill", source: SOURCE_COASTLINE,
-          paint: {
-            "fill-color": "rgba(120,160,100,0.12)",
-            "fill-opacity": coastlineRef.current && maRef.current > 0 ? 0.12 : 0,
-          },
-        });
-      }
-      if (!map.getLayer(LAYER_COASTLINE_BORDER)) {
-        map.addLayer({
-          id: LAYER_COASTLINE_BORDER, type: "line", source: SOURCE_COASTLINE,
-          paint: {
-            "line-color": "rgba(120,160,100,0.35)", "line-width": 1,
-            "line-opacity": coastlineRef.current && maRef.current > 0 ? 0.35 : 0,
-          },
-        });
-      }
+      // 2. Overlay layers via controller
+      addAllOverlays(map, currentOverlayParams());
 
-      // LGM ice sheets
-      if (!map.getSource(SOURCE_ICE)) {
-        map.addSource(SOURCE_ICE, { type: "geojson", data: lgmIceGeoJSON() as any });
-      }
-      if (!map.getLayer(LAYER_ICE_FILL)) {
-        map.addLayer({
-          id: LAYER_ICE_FILL, type: "fill", source: SOURCE_ICE,
-          paint: { "fill-color": "rgba(180,210,240,0.35)", "fill-opacity": lgmOpacity(maRef.current) },
-        });
-      }
-      if (!map.getLayer(LAYER_ICE_BORDER)) {
-        map.addLayer({
-          id: LAYER_ICE_BORDER, type: "line", source: SOURCE_ICE,
-          paint: {
-            "line-color": "rgba(200,220,250,0.45)", "line-width": 1.5,
-            "line-dasharray": [4, 3],
-            "line-opacity": lgmOpacity(maRef.current) > 0 ? lgmOpacity(maRef.current) + 0.15 : 0,
-          },
-        });
-      }
-
-      // LGM exposed land
-      if (!map.getSource(SOURCE_EXPOSED)) {
-        map.addSource(SOURCE_EXPOSED, { type: "geojson", data: lgmExposedLandGeoJSON() as any });
-      }
-      if (!map.getLayer(LAYER_EXPOSED_FILL)) {
-        const o = lgmOpacity(maRef.current) * 0.9;
-        map.addLayer({
-          id: LAYER_EXPOSED_FILL, type: "fill", source: SOURCE_EXPOSED,
-          paint: { "fill-color": "rgba(170,150,100,0.25)", "fill-opacity": o },
-        });
-      }
-      if (!map.getLayer(LAYER_EXPOSED_BORDER)) {
-        const o = lgmOpacity(maRef.current) * 0.9;
-        map.addLayer({
-          id: LAYER_EXPOSED_BORDER, type: "line", source: SOURCE_EXPOSED,
-          paint: {
-            "line-color": "rgba(180,160,110,0.40)", "line-width": 1,
-            "line-dasharray": [3, 2], "line-opacity": o > 0 ? o + 0.1 : 0,
-          },
-        });
-      }
-
-      // Clustered GeoJSON
-      if (!map.getSource(SOURCE_ID)) {
-        map.addSource(SOURCE_ID, {
-          type: "geojson", data: geojsonRef.current as any,
-          cluster: true, clusterMaxZoom: 14, clusterRadius: 40,
-        });
-      }
-
-      const m = modeRef.current;
-
-      // Cluster circles
-      if (!map.getLayer(LAYER_CLUSTERS)) {
-        map.addLayer({
-          id: LAYER_CLUSTERS, type: "circle", source: SOURCE_ID,
-          filter: ["has", "point_count"],
-          paint: {
-            "circle-radius": ["step", ["get", "point_count"], 13, 10, 17, 30, 22, 100, 28],
-            "circle-color": clusterColor(m),
-            "circle-stroke-width": 1,
-            "circle-stroke-color": clusterStrokeColor(m),
-            "circle-opacity": 0.88,
-          },
-        });
-      }
-
-      // Cluster count
-      if (!map.getLayer(LAYER_CLUSTER_COUNT)) {
-        map.addLayer({
-          id: LAYER_CLUSTER_COUNT, type: "symbol", source: SOURCE_ID,
-          filter: ["has", "point_count"],
-          layout: {
-            "text-field": ["get", "point_count_abbreviated"],
-            "text-size": 11,
-            "text-font": ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
-          },
-          paint: { "text-color": clusterTextColor(m) },
-        });
-      }
-
-      // Unclustered points
-      if (!map.getLayer(LAYER_POINTS)) {
-        map.addLayer({
-          id: LAYER_POINTS, type: "circle", source: SOURCE_ID,
-          filter: ["!", ["has", "point_count"]],
-          paint: {
-            "circle-radius": 5.5,
-            "circle-color": ERA_COLOR_MATCH,
-            "circle-stroke-width": 1.5,
-            "circle-stroke-color": pointStrokeColor(m),
-            "circle-opacity": markerOpacity(m),
-          },
-        });
-      }
-
-      // Selected glow
-      if (!map.getLayer(LAYER_SELECTED_GLOW)) {
-        map.addLayer({
-          id: LAYER_SELECTED_GLOW, type: "circle", source: SOURCE_ID,
-          filter: ["==", ["get", "id"], selectedIdRef.current ?? ""],
-          paint: {
-            "circle-radius": 16,
-            "circle-color": "rgba(250,192,94,0.0)",
-            "circle-stroke-width": selectedGlowStrokeWidth(m),
-            "circle-stroke-color": "rgba(250,192,94,0.28)",
-            "circle-opacity": 1,
-          },
-        });
-      }
-
-      // Selected centre
-      if (!map.getLayer(LAYER_SELECTED)) {
-        map.addLayer({
-          id: LAYER_SELECTED, type: "circle", source: SOURCE_ID,
-          filter: ["==", ["get", "id"], selectedIdRef.current ?? ""],
-          paint: {
-            "circle-radius": 8,
-            "circle-color": "rgba(250,192,94,0.30)",
-            "circle-stroke-width": 1.5,
-            "circle-stroke-color": "rgba(250,192,94,0.70)",
-          },
-        });
-      }
+      // 3. Marker layers (on top of overlays)
+      initializeMarkerLayers(map);
     } finally {
       initializingRef.current = false;
     }
@@ -657,26 +581,19 @@ export default function Map({
     if (map.getLayer(LAYER_SELECTED_GLOW)) map.setFilter(LAYER_SELECTED_GLOW, filter);
   }, [selectedId]);
 
-  // Time tint
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !loadedRef.current || !map.getLayer(LAYER_TIME_TINT)) return;
-    map.setPaintProperty(LAYER_TIME_TINT, "fill-color", timeTintColor(ma));
-  }, [ma]);
-
-  // LGM overlays
+  // Overlay updates — single unified useEffect via OverlayController
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !loadedRef.current) return;
-    const iceO = lgmOpacity(ma);
-    const expO = iceO * 0.9;
-    if (map.getLayer(LAYER_ICE_FILL)) map.setPaintProperty(LAYER_ICE_FILL, "fill-opacity", iceO);
-    if (map.getLayer(LAYER_ICE_BORDER)) map.setPaintProperty(LAYER_ICE_BORDER, "line-opacity", iceO > 0 ? iceO + 0.15 : 0);
-    if (map.getLayer(LAYER_EXPOSED_FILL)) map.setPaintProperty(LAYER_EXPOSED_FILL, "fill-opacity", expO);
-    if (map.getLayer(LAYER_EXPOSED_BORDER)) map.setPaintProperty(LAYER_EXPOSED_BORDER, "line-opacity", expO > 0 ? expO + 0.1 : 0);
-  }, [ma]);
+    const params: OverlayParams = {
+      ma,
+      boost: overlayBoost ? 1.15 : 1.0,
+      seaLevelOverride,
+    };
+    updateAllOverlays(map, params);
+  }, [ma, seaLevelOverride, overlayBoost]);
 
-  // Paleocoastline
+  // Paleocoastline data update
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !loadedRef.current) return;
@@ -684,14 +601,17 @@ export default function Map({
     if (!src) return;
     if (coastlineGeoJSON && ma > 0) {
       src.setData(coastlineGeoJSON as any);
-      if (map.getLayer(LAYER_COASTLINE_FILL)) map.setPaintProperty(LAYER_COASTLINE_FILL, "fill-opacity", 0.12);
-      if (map.getLayer(LAYER_COASTLINE_BORDER)) map.setPaintProperty(LAYER_COASTLINE_BORDER, "line-opacity", 0.35);
     } else {
       src.setData(EMPTY_FC as any);
-      if (map.getLayer(LAYER_COASTLINE_FILL)) map.setPaintProperty(LAYER_COASTLINE_FILL, "fill-opacity", 0);
-      if (map.getLayer(LAYER_COASTLINE_BORDER)) map.setPaintProperty(LAYER_COASTLINE_BORDER, "line-opacity", 0);
     }
-  }, [coastlineGeoJSON, ma]);
+    // After data update, re-run overlay update so sea level overlay reflects new coastline
+    const params: OverlayParams = {
+      ma,
+      boost: overlayBoost ? 1.15 : 1.0,
+      seaLevelOverride,
+    };
+    updateAllOverlays(map, params);
+  }, [coastlineGeoJSON, ma, overlayBoost, seaLevelOverride]);
 
   // Marker/cluster styling per mode
   useEffect(() => {

@@ -8,7 +8,7 @@ import DetailSheet from "@/components/sheets/DetailSheet";
 import TimeSheet from "@/components/sheets/TimeSheet";
 import MobileSearchBar from "@/components/mobile/MobileSearchBar";
 import FloatingControls from "@/components/mobile/FloatingControls";
-import { MapLegend } from "@/components/ui/MapLegend";
+import { ActiveOverlays } from "@/components/ui/ActiveOverlays";
 import type { SnapPoint } from "@/hooks/useBottomSheet";
 import type { LayoutProps } from "./LayoutProps";
 
@@ -29,6 +29,8 @@ export default function MobileLayout(props: LayoutProps) {
     activeEra, onEraChange,
     deepTimeEnabled, onDeepTimeToggle,
     ma, onMaChange,
+    seaLevelOverride, onSeaLevelChange,
+    overlayBoost, onOverlayBoostToggle,
     paleoData, coastlineGeoJSON,
     center, onCenterChange,
     nearbyFossilCount, onSurpriseMe,
@@ -115,12 +117,17 @@ export default function MobileLayout(props: LayoutProps) {
         activeEra={activeEra}
         deepTimeEnabled={deepTimeEnabled}
         interactionEnabled={interactionEnabled}
+        seaLevelOverride={seaLevelOverride}
+        overlayBoost={overlayBoost}
       />
 
-      {/* ── Map legend ── */}
-      {deepTimeEnabled && ma > 0 && (
-        <MapLegend ma={ma} hasCoastlines={!!coastlineGeoJSON} />
-      )}
+      {/* ── Active overlays indicator ── */}
+      <ActiveOverlays
+        ma={deepTimeEnabled ? ma : 0}
+        deepTimeEnabled={deepTimeEnabled}
+        seaLevelOverride={seaLevelOverride}
+        overlayBoost={overlayBoost}
+      />
 
       {/* ── Attribution ── */}
       <div className="absolute bottom-[100px] right-2 text-[8px] text-zinc-700 pointer-events-none z-10">
@@ -183,6 +190,10 @@ export default function MobileLayout(props: LayoutProps) {
             onDeepTimeToggle={onDeepTimeToggle}
             ma={ma}
             onMaChange={onMaChange}
+            seaLevelOverride={seaLevelOverride}
+            onSeaLevelChange={onSeaLevelChange}
+            overlayBoost={overlayBoost}
+            onOverlayBoostToggle={onOverlayBoostToggle}
             paleoData={paleoData}
             activeSources={activeSources}
             onToggleSource={onToggleSource}

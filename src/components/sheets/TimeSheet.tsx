@@ -17,6 +17,10 @@ export default function TimeSheet({
   onDeepTimeToggle,
   ma,
   onMaChange,
+  seaLevelOverride,
+  onSeaLevelChange,
+  overlayBoost,
+  onOverlayBoostToggle,
   paleoData,
   activeSources,
   onToggleSource,
@@ -32,6 +36,10 @@ export default function TimeSheet({
   onDeepTimeToggle: () => void;
   ma: number;
   onMaChange: (ma: number) => void;
+  seaLevelOverride?: number | null;
+  onSeaLevelChange?: (v: number | null) => void;
+  overlayBoost?: boolean;
+  onOverlayBoostToggle?: () => void;
   paleoData: ReconstructionResult | null;
   activeSources: PlaceSource[];
   onToggleSource: (s: PlaceSource) => void;
@@ -51,6 +59,10 @@ export default function TimeSheet({
         onDeepTimeToggle={onDeepTimeToggle}
         ma={ma}
         onMaChange={onMaChange}
+        seaLevelOverride={seaLevelOverride}
+        onSeaLevelChange={onSeaLevelChange}
+        overlayBoost={overlayBoost}
+        onOverlayBoostToggle={onOverlayBoostToggle}
       />
 
       {/* ── Context panel ── */}

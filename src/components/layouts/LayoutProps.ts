@@ -38,6 +38,12 @@ export type LayoutProps = {
   ma: number;
   onMaChange: (ma: number) => void;
 
+  // Overlays
+  seaLevelOverride: number | null;
+  onSeaLevelChange: (v: number | null) => void;
+  overlayBoost: boolean;
+  onOverlayBoostToggle: () => void;
+
   // Context / Paleo
   paleoData: ReconstructionResult | null;
   coastlineGeoJSON: GeoJSON.FeatureCollection | null;
