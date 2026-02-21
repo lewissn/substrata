@@ -40,8 +40,4 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# PWA — generated at build time by @ducanh2912/next-pwa / workbox
-/public/sw.js
-/public/sw.js.map
-/public/workbox-*.js
-/public/workbox-*.js.map
+# PWA — sw.js is hand-crafted and committed; no generated workbox files

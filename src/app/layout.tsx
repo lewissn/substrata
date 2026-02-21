@@ -2,6 +2,7 @@ import "./globals.css";
 import { Inter } from "next/font/google";
 import type { Metadata, Viewport } from "next";
 import SwUpdateToast from "@/components/pwa/SwUpdateToast";
+import ServiceWorkerRegistrar from "@/components/pwa/ServiceWorkerRegistrar";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -45,6 +46,7 @@ export default function RootLayout({
     <html lang="en" className={inter.variable}>
       <body className="font-sans bg-zinc-950 text-zinc-100 antialiased">
         {children}
+        <ServiceWorkerRegistrar />
         <SwUpdateToast />
       </body>
     </html>
