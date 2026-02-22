@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ARCHIVE_ARTICLES, ARCHIVE_KIND_LABELS } from "@/data/archiveArticles";
-import type { ArchiveTopicKind } from "@/data/archiveCatalog";
-import type { ArchiveArticle } from "@/data/archiveTypes";
+import { ARCHIVE_ARTICLES, ARCHIVE_KIND_LABELS } from "../../data/archiveArticles";
+import type { ArchiveTopicKind } from "../../data/archiveCatalog";
+import type { ArchiveArticle } from "../../data/archiveTypes";
 import { TIME_STOPS } from "@/domain/thisPlace";
 import type { ActivePlace, TimeStopDef } from "@/domain/thisPlace";
 import { buildPlaceDossier } from "@/lib/dossier/buildPlaceDossier";
