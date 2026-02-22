@@ -6,6 +6,7 @@ import TimeControls from "@/components/TimeControls";
 import Feed from "@/components/Feed";
 import Drawer from "@/components/Drawer";
 import FindsSheet from "@/components/sheets/FindsSheet";
+import DiscoverSheet from "@/components/discover/DiscoverSheet";
 import { Chip, KIND_CHIPS } from "@/components/ui/Chip";
 import { ActiveOverlays } from "@/components/ui/ActiveOverlays";
 import type { LayoutProps } from "./LayoutProps";
@@ -34,10 +35,11 @@ export default function DesktopLayout(props: LayoutProps) {
     center, onCenterChange,
     mapTheme, onMapThemeChange,
     nearbyFossilCount, onSurpriseMe,
-    savedPlaces, onSavePlace, onUnsavePlace, onRestoreFind,
+    savedPlaces, onSavePlace, onUnsavePlace, onRestoreFind, onViewOnMap,
   } = props;
 
   const [showFinds, setShowFinds] = useState(false);
+  const [showDiscover, setShowDiscover] = useState(false);
 
   const isSaved = selected ? savedPlaces.some((p) => p.id === selected.id) : false;
 
@@ -45,6 +47,15 @@ export default function DesktopLayout(props: LayoutProps) {
     onRestoreFind(place);
     setShowFinds(false);
   };
+
+  const handleViewOnMap = (params: { lat: number; lng: number; ma?: number }) => {
+    onViewOnMap(params);
+    setShowDiscover(false);
+  };
+
+  // Only one panel can be active at a time
+  const toggleFinds = () => { setShowFinds((v) => !v); setShowDiscover(false); };
+  const toggleDiscover = () => { setShowDiscover((v) => !v); setShowFinds(false); };
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
@@ -80,12 +91,26 @@ export default function DesktopLayout(props: LayoutProps) {
         <div className="w-[400px] flex-shrink-0 flex flex-col border-r border-[rgba(255,255,255,0.06)] bg-[rgba(9,9,11,1)] overflow-hidden">
           {/* Header */}
           <div className="px-4 pt-4 pb-3 border-b border-[rgba(255,255,255,0.05)] flex-shrink-0">
-            <div className="flex items-baseline justify-between">
+            <div className="flex items-center justify-between">
               <h1 className="text-[15px] font-semibold tracking-tight text-zinc-100">Substrata</h1>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                {/* Archive / Discover toggle */}
+                <button
+                  onClick={toggleDiscover}
+                  title={showDiscover ? "Back to feed" : "Archive"}
+                  className={[
+                    "px-2 py-1 rounded-md text-[10px] transition",
+                    showDiscover
+                      ? "text-[#89CDD1] bg-[rgba(31,90,92,0.20)]"
+                      : "text-zinc-600 hover:text-zinc-300",
+                  ].join(" ")}
+                  aria-label="Archive"
+                >
+                  Archive
+                </button>
                 {/* My Finds toggle */}
                 <button
-                  onClick={() => setShowFinds((v) => !v)}
+                  onClick={toggleFinds}
                   title={showFinds ? "Back to feed" : "My Finds"}
                   className={[
                     "p-1.5 rounded-md transition",
@@ -105,12 +130,10 @@ export default function DesktopLayout(props: LayoutProps) {
                     </svg>
                   )}
                 </button>
-                <span className="text-[11px] text-zinc-600">
-                  {showFinds
-                    ? savedPlaces.length > 0
-                      ? `${savedPlaces.length} saved`
-                      : ""
-                    : rankedCards.length > 0
+                <span className="text-[11px] text-zinc-600 min-w-[2rem] text-right">
+                  {showFinds && savedPlaces.length > 0
+                    ? `${savedPlaces.length} saved`
+                    : !showFinds && !showDiscover && rankedCards.length > 0
                     ? `${rankedCards.length} places`
                     : ""}
                 </span>
@@ -119,7 +142,12 @@ export default function DesktopLayout(props: LayoutProps) {
             <p className="text-[11.5px] text-zinc-600 mt-0.5 tracking-wide">Explore layers of time</p>
           </div>
 
-          {showFinds ? (
+          {showDiscover ? (
+            /* ── Archive ── */
+            <div className="flex-1 overflow-hidden">
+              <DiscoverSheet onViewOnMap={handleViewOnMap} />
+            </div>
+          ) : showFinds ? (
             /* ── My Finds ── */
             <div className="flex-1 overflow-hidden">
               <FindsSheet

@@ -413,6 +413,14 @@ export default function Home() {
     onSavePlace: handleSavePlace,
     onUnsavePlace: handleUnsavePlace,
     onRestoreFind: handleRestoreFind,
+    onViewOnMap: ({ lat, lng, ma: entryMa }: { lat: number; lng: number; ma?: number }) => {
+      setCenter([lng, lat]);
+      if (entryMa && entryMa > 0) {
+        setMa(entryMa);
+        setDeepTimeEnabled(true);
+        setPaleoEnabled(true);
+      }
+    },
   };
 
   return isMobile ? (

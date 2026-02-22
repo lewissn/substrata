@@ -15,6 +15,7 @@ export default function FeedSheet({
   onCardSelect,
   onSearchArea,
   onSurpriseMe,
+  onOpenDiscover,
 }: {
   cards: PlaceCard[];
   newCardIds: Set<string>;
@@ -23,18 +24,29 @@ export default function FeedSheet({
   onCardSelect: (card: PlaceCard) => void;
   onSearchArea: () => void;
   onSurpriseMe: () => void;
+  onOpenDiscover?: () => void;
 }) {
   return (
     <div className="flex flex-col h-full">
       {/* ── Header ── */}
       <div className="px-4 pb-3 flex items-center justify-between gap-2 border-b border-[rgba(255,255,255,0.05)]">
-        <div>
-          <h1 className="text-[14px] font-semibold tracking-tight text-zinc-100">
-            Substrata
-          </h1>
-          <span className="text-[10px] text-zinc-600">
-            {cards.length > 0 ? `${cards.length} places` : "Explore layers of time"}
-          </span>
+        <div className="flex items-center gap-2">
+          <div>
+            <h1 className="text-[14px] font-semibold tracking-tight text-zinc-100">
+              Substrata
+            </h1>
+            <span className="text-[10px] text-zinc-600">
+              {cards.length > 0 ? `${cards.length} places` : "Explore layers of time"}
+            </span>
+          </div>
+          {onOpenDiscover && (
+            <button
+              onClick={onOpenDiscover}
+              className="ml-1 px-2.5 py-1 rounded-lg border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.06)] text-zinc-500 hover:text-zinc-300 text-[10px] transition"
+            >
+              Archive
+            </button>
+          )}
         </div>
 
         <div className="flex gap-1.5">
