@@ -174,7 +174,11 @@ export function generatePlaceNarrative(params: GenerateParams): PlaceNarrative {
 
   const usedPaleoLat = paleoLat != null;
   const effectiveLat = paleoLat ?? lat;
-  const band = classifyLatBand(effectiveLat);
+  let band = classifyLatBand(effectiveLat);
+  // Safety clamp: for "now", abs(lat) < 60 → never output taiga/tundra/subpolar unless proven by data
+  if (stopKey === "now" && Math.abs(lat) < 60 && (band === "subpolar" || band === "polar")) {
+    band = "temperate";
+  }
   const sea = estimateSeaSetting(stopKey, lat, lng);
   const biome = getBiomeProfile(stopKey, band, sea);
   const confidence: Confidence = usedPaleoLat ? "high" : "moderate";

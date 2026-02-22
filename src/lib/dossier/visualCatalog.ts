@@ -155,6 +155,11 @@ export function resolveHeroVisual(
   landSea: LandSea,
   resolvedImageUrl?: string | null,
 ): Img | VisualPlaceholder {
+  // Modern (Now): Wikipedia / Wikidata / Commons first, then catalog/placeholder
+  if (stopKey === "now" && resolvedImageUrl) {
+    return { url: resolvedImageUrl, credit: "Wikipedia" };
+  }
+
   // 1. Exact biome key
   const biomeKey = `${stopKey}_${band}_${landSea}`;
   const exact = BIOME_IMAGES[biomeKey];
@@ -169,7 +174,7 @@ export function resolveHeroVisual(
   const period = PERIOD_IMAGES[stopKey];
   if (period) return { url: period.url, credit: period.credit };
 
-  // 4. Externally resolved image (Wikipedia etc.)
+  // 4. Externally resolved image (Wikipedia etc.) for non-now stops
   if (resolvedImageUrl) return { url: resolvedImageUrl, credit: "Wikipedia" };
 
   // 5. CSS placeholder

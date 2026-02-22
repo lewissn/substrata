@@ -90,4 +90,9 @@ export type LayoutProps = {
   onClearPlace: () => void;
   onSetTimeStop: (stop: TimeStopDef) => void;
   onFlyToPlace: () => void;
+
+  // Try This (first-use presets)
+  onTryThisPreset?: (preset: import("@/data/tryThisPresets").TryThisPreset) => void;
+  tryThisAppliedStopKey?: string | null;
+  onClearTryThisApplied?: () => void;
 };

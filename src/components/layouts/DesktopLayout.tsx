@@ -39,6 +39,7 @@ export default function DesktopLayout(props: LayoutProps) {
     savedPlaces, onSavePlace, onUnsavePlace, onRestoreFind, onViewOnMap,
     activePlace, dropPinMode, droppedPin,
     onToggleDropPinMode, onDropPin, onClearPlace, onSetTimeStop, onFlyToPlace,
+    onTryThisPreset, tryThisAppliedStopKey, onClearTryThisApplied,
   } = props;
 
   const [showFinds, setShowFinds] = useState(false);
@@ -211,6 +212,9 @@ export default function DesktopLayout(props: LayoutProps) {
                 onClearPlace={onClearPlace}
                 onSetTimeStop={onSetTimeStop}
                 onFlyToPlace={onFlyToPlace}
+                onTryThisPreset={onTryThisPreset}
+                tryThisAppliedStopKey={tryThisAppliedStopKey}
+                onClearTryThisApplied={onClearTryThisApplied}
               />
             </div>
           ) : (
