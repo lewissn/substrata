@@ -299,7 +299,8 @@ export default function HomeApp() {
   const handleDropPin = useCallback((lngLat: [number, number]) => {
     const [lng, lat] = lngLat;
     setDroppedPin(lngLat);
-    setCenter(lngLat);
+    // Do NOT call setCenter — the user tapped a visible map point, no re-center needed.
+    // Auto-flying here is what caused the pinch-zoom re-positioning bug.
     setActivePlace(customPin(lat, lng));
     setDropPinMode(false);
     setSelected(null);

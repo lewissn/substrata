@@ -689,61 +689,25 @@ export default function Map({
     map.getCanvas().style.cursor = dropPinMode ? "crosshair" : "";
   }, [dropPinMode]);
 
-  // Drop-pin map-level click handler (registered once, checks ref at call time)
+  // Drop-pin map-level click handler — only active when dropPinMode is true.
+  // Attaching/detaching on every mode change guarantees no spurious fires when
+  // the user is simply panning or pinching the map.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !dropPinMode) return;
+
     const handler = (e: mapboxgl.MapMouseEvent) => {
-      // Skip if a layer (point/cluster) handled this click
+      // Skip if a layer (point/cluster) handled this same click
       if (layerClickedRef.current) {
         layerClickedRef.current = false;
         return;
       }
-      if (dropPinModeRef.current) {
-        onDropPinRef.current?.([e.lngLat.lng, e.lngLat.lat]);
-      }
+      onDropPinRef.current?.([e.lngLat.lng, e.lngLat.lat]);
     };
+
     map.on("click", handler);
     return () => { map.off("click", handler); };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Long-press on mobile always drops a pin (natural gesture)
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    let longPressTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const handleTouchStart = (e: mapboxgl.MapTouchEvent) => {
-      const touch = e.originalEvent.touches[0];
-      const startX = touch.clientX;
-      const startY = touch.clientY;
-
-      const cancel = () => {
-        if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
-      };
-
-      longPressTimer = setTimeout(() => {
-        longPressTimer = null;
-        onDropPinRef.current?.([e.lngLat.lng, e.lngLat.lat]);
-      }, 650);
-
-      const onTouchMove = (me: TouchEvent) => {
-        if (
-          me.touches.length > 0 &&
-          (Math.abs(me.touches[0].clientX - startX) > 12 ||
-            Math.abs(me.touches[0].clientY - startY) > 12)
-        ) {
-          cancel();
-        }
-      };
-
-      map.once("touchend", cancel);
-      map.getCanvas().addEventListener("touchmove", onTouchMove, { once: true });
-    };
-
-    map.on("touchstart", handleTouchStart);
-    return () => { map.off("touchstart", handleTouchStart); };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dropPinMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Dropped pin marker (works regardless of loadedRef since Marker is DOM-based)
   useEffect(() => {
@@ -756,14 +720,37 @@ export default function Map({
     }
 
     if (droppedPin) {
+      // Inject pulse keyframes once
+      if (!document.getElementById("substrata-pin-css")) {
+        const s = document.createElement("style");
+        s.id = "substrata-pin-css";
+        s.textContent = `
+          @keyframes substrata-pulse {
+            0%   { transform: translate(-50%,-50%) scale(0.7); opacity: 0.65; }
+            60%  { transform: translate(-50%,-50%) scale(2.4); opacity: 0; }
+            100% { transform: translate(-50%,-50%) scale(2.4); opacity: 0; }
+          }
+          .s-pin-pulse {
+            position:absolute; bottom:6px; left:50%;
+            width:14px; height:14px; border-radius:50%;
+            background:rgba(58,144,150,0.45);
+            animation: substrata-pulse 2s ease-out infinite;
+            pointer-events:none;
+          }
+        `;
+        document.head.appendChild(s);
+      }
+
       const el = document.createElement("div");
       el.style.cssText =
-        "width:32px;height:36px;cursor:pointer;display:flex;align-items:flex-end;justify-content:center;";
-      el.innerHTML = `<svg width="28" height="34" viewBox="0 0 24 28" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 1C7.58 1 4 4.58 4 9c0 6.75 8 18 8 18s8-11.25 8-18c0-4.42-3.58-8-8-8z"
-          fill="#3A9096" stroke="rgba(255,255,255,0.9)" stroke-width="1.2"/>
-        <circle cx="12" cy="9" r="3" fill="white" opacity="0.95"/>
-      </svg>`;
+        "position:relative;width:32px;height:40px;cursor:pointer;display:flex;align-items:flex-end;justify-content:center;";
+      el.innerHTML = `
+        <div class="s-pin-pulse"></div>
+        <svg width="28" height="36" viewBox="0 0 24 30" xmlns="http://www.w3.org/2000/svg" style="position:relative;z-index:1;">
+          <path d="M12 1C7.58 1 4 4.58 4 9c0 6.75 8 20 8 20s8-13.25 8-20c0-4.42-3.58-8-8-8z"
+            fill="#2C6F74" stroke="rgba(255,255,255,0.90)" stroke-width="1.5"/>
+          <circle cx="12" cy="9" r="3.2" fill="rgba(255,255,255,0.95)"/>
+        </svg>`;
       pinMarkerRef.current = new mapboxgl.Marker({ element: el, anchor: "bottom" })
         .setLngLat(droppedPin)
         .addTo(map);
