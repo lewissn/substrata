@@ -15,12 +15,35 @@ import { ActiveOverlays } from "@/components/ui/ActiveOverlays";
 import type { SnapPoint } from "@/hooks/useBottomSheet";
 import type { LayoutProps } from "./LayoutProps";
 import type { SavedPlace } from "@/domain/savedPlaces";
+import { getInitialSheet, persistSheet, type SheetType } from "@/state/sheetState";
 
 // ---------------------------------------------------------------------------
 // MobileLayout — map-first layout with bottom sheets
+// Sheet state persists: minimising does NOT change active sheet; re-open restores it.
 // ---------------------------------------------------------------------------
 
 type SheetMode = "place" | "feed" | "detail" | "time" | "finds" | "discover";
+
+const STORED_TO_MODE: Record<SheetType, SheetMode> = {
+  thisPlace: "place",
+  nearby: "feed",
+  deepTime: "time",
+  archive: "discover",
+  finds: "finds",
+  detail: "place",
+};
+
+function modeToStored(mode: SheetMode): SheetType {
+  const map: Record<SheetMode, SheetType> = {
+    place: "thisPlace",
+    feed: "nearby",
+    detail: "detail",
+    time: "deepTime",
+    finds: "finds",
+    discover: "archive",
+  };
+  return map[mode];
+}
 
 export default function MobileLayout(props: LayoutProps) {
   const {
@@ -47,19 +70,34 @@ export default function MobileLayout(props: LayoutProps) {
     onToggleDropPinMode, onDropPin, onClearPlace, onSetTimeStop, onFlyToPlace,
   } = props;
 
-  // Default to "place" — This Place is the primary front view
-  const [sheetMode, setSheetMode] = useState<SheetMode>("place");
+  // Restore last active sheet from localStorage; default "place" only on first load
+  const [sheetMode, setSheetModeState] = useState<SheetMode>(() => {
+    const stored = getInitialSheet();
+    return STORED_TO_MODE[stored] ?? "place";
+  });
   const [snapPoint, setSnapPoint] = useState<SnapPoint>("collapsed");
 
+  const setSheetMode = useCallback((mode: SheetMode) => {
+    setSheetModeState(mode);
+    persistSheet(modeToStored(mode));
+  }, []);
+
+  // When user explicitly selects a card, switch to detail (explicit action)
   useEffect(() => {
     if (selected) {
       setSheetMode("detail");
       setSnapPoint("half");
     }
-  }, [selected]);
+  }, [selected, setSheetMode]);
 
-  // When the user places a pin, dropPinMode goes true → false.
-  // Detect that transition and re-open "This Place" so the content is visible.
+  // If selection is cleared while in detail (e.g. close button), show This Place
+  useEffect(() => {
+    if (!selected && sheetMode === "detail") {
+      setSheetMode("place");
+    }
+  }, [selected, sheetMode, setSheetMode]);
+
+  // When the user places a pin, re-open This Place so the content is visible
   const prevDropPinRef = useRef(dropPinMode);
   useEffect(() => {
     const wasDropping = prevDropPinRef.current;
@@ -68,7 +106,7 @@ export default function MobileLayout(props: LayoutProps) {
       setSheetMode("place");
       setSnapPoint("half");
     }
-  }, [dropPinMode, activePlace]);
+  }, [dropPinMode, activePlace, setSheetMode]);
 
   const handleCardSelect = useCallback(
     (card: Parameters<typeof onCardSelect>[0]) => onCardSelect(card),
@@ -79,30 +117,18 @@ export default function MobileLayout(props: LayoutProps) {
     onCloseSelected();
     setSheetMode("place");
     setSnapPoint("collapsed");
-  }, [onCloseSelected]);
+  }, [onCloseSelected, setSheetMode]);
 
-  const handleSnapChange = useCallback(
-    (sp: SnapPoint) => {
-      setSnapPoint(sp);
-      if (
-        sp === "collapsed" &&
-        (sheetMode === "time" || sheetMode === "finds" || sheetMode === "discover" || sheetMode === "feed")
-      ) {
-        setSheetMode("place");
-      }
-      if (sp === "collapsed" && sheetMode === "detail") {
-        onCloseSelected();
-        setSheetMode("place");
-      }
-    },
-    [sheetMode, onCloseSelected]
-  );
+  // Minimising does NOT change activeSheet; re-opening restores same sheet
+  const handleSnapChange = useCallback((sp: SnapPoint) => {
+    setSnapPoint(sp);
+  }, []);
 
-  const openPlace = useCallback(() => { setSheetMode("place"); setSnapPoint("half"); }, []);
-  const openFeed = useCallback(() => { setSheetMode("feed"); setSnapPoint("half"); }, []);
-  const openTime = useCallback(() => { setSheetMode("time"); setSnapPoint("half"); }, []);
-  const openFinds = useCallback(() => { setSheetMode("finds"); setSnapPoint("half"); }, []);
-  const openDiscover = useCallback(() => { setSheetMode("discover"); setSnapPoint("half"); }, []);
+  const openPlace = useCallback(() => { setSheetMode("place"); setSnapPoint("half"); }, [setSheetMode]);
+  const openFeed = useCallback(() => { setSheetMode("feed"); setSnapPoint("half"); }, [setSheetMode]);
+  const openTime = useCallback(() => { setSheetMode("time"); setSnapPoint("half"); }, [setSheetMode]);
+  const openFinds = useCallback(() => { setSheetMode("finds"); setSnapPoint("half"); }, [setSheetMode]);
+  const openDiscover = useCallback(() => { setSheetMode("discover"); setSnapPoint("half"); }, [setSheetMode]);
 
   const isSaved = selected ? savedPlaces.some((p) => p.id === selected.id) : false;
 
@@ -141,6 +167,13 @@ export default function MobileLayout(props: LayoutProps) {
     : sheetMode === "finds" ? "My Finds"
     : sheetMode === "discover" ? "Archive"
     : "Time & Filters";
+
+  const sheetAccent =
+    sheetMode === "place" ? "teal" as const
+    : sheetMode === "feed" || sheetMode === "detail" ? "gold" as const
+    : sheetMode === "time" ? "slate" as const
+    : sheetMode === "discover" ? "sepia" as const
+    : "zinc" as const;
 
   const handleViewOnMap = useCallback(
     (params: { lat: number; lng: number; ma?: number }) => {
@@ -200,6 +233,7 @@ export default function MobileLayout(props: LayoutProps) {
         onOpenFeed={openFeed}
         onOpenTime={openTime}
         onOpenFinds={openFinds}
+        onOpenArchive={openDiscover}
         onToggleSave={handleToggleSave}
         onActivateDropPin={handleActivateDropPin}
         sheetSnap={snapPoint}
@@ -210,93 +244,111 @@ export default function MobileLayout(props: LayoutProps) {
         hasActivePlace={!!activePlace}
       />
 
-      <BottomSheet snapPoint={snapPoint} onSnapChange={handleSnapChange} label={sheetLabel}>
-        {sheetMode === "place" && (
-          <ThisPlacePanel
-            activePlace={activePlace}
-            paleoData={paleoData}
-            dropPinMode={dropPinMode}
-            onActivateDropPin={handleActivateDropPin}
-            onClearPlace={onClearPlace}
-            onSetTimeStop={onSetTimeStop}
-            onFlyToPlace={handleFlyToPlace}
-          />
-        )}
-
-        {sheetMode === "feed" && (
-          <FeedSheet
-            cards={rankedCards}
-            newCardIds={newCardIds}
-            loading={loading}
-            error={error}
-            onCardSelect={handleCardSelect}
-            onSearchArea={onSearchArea}
-            onSurpriseMe={onSurpriseMe}
-            onOpenDiscover={openDiscover}
-            onWander={props.onWander}
-            activeEra={activeEra}
-            onEraChange={onEraChange}
-            activeSources={activeSources}
-            onToggleSource={onToggleSource}
-            activeKinds={activeKinds}
-            onToggleKind={onToggleKind}
-            hasActiveFilters={hasActiveFilters}
-            onResetFilters={onResetFilters}
-            hasPbdb={cards.some((c) => c.source === "pbdb")}
-          />
-        )}
-
-        {sheetMode === "detail" && selected && (
-          <DetailSheet
-            card={selected}
-            onClose={handleCloseDetail}
-            ma={deepTimeEnabled ? ma : null}
-            paleoLat={paleoData?.paleoLat}
-            paleoLng={paleoData?.paleoLng}
-            nearbyFossilCount={nearbyFossilCount}
-            isSaved={isSaved}
-            onToggleSave={handleToggleSave}
-            seaLevelOverride={seaLevelOverride}
-            paleoEnabled={paleoEnabled}
-            overlayBoost={overlayBoost}
-          />
-        )}
-
-        {sheetMode === "time" && (
-          <TimeSheet
-            activeEra={activeEra}
-            onEraChange={onEraChange}
-            deepTimeEnabled={deepTimeEnabled}
-            onDeepTimeToggle={onDeepTimeToggle}
-            ma={ma}
-            onMaChange={onMaChange}
-            historicalYears={historicalYears}
-            onHistoricalYearsChange={onHistoricalYearsChange}
-            seaLevelOverride={seaLevelOverride}
-            onSeaLevelChange={onSeaLevelChange}
-            overlayBoost={overlayBoost}
-            onOverlayBoostToggle={onOverlayBoostToggle}
-            paleoEnabled={paleoEnabled}
-            onPaleoToggle={onPaleoToggle}
-            paleoOpacity={paleoOpacity}
-            onPaleoOpacityChange={onPaleoOpacityChange}
-            paleoData={paleoData}
-            mapTheme={mapTheme}
-            onMapThemeChange={onMapThemeChange}
-          />
-        )}
-
-        {sheetMode === "finds" && (
-          <FindsSheet
-            saves={savedPlaces}
-            onSelect={handleRestoreFind}
-            onUnsave={onUnsavePlace}
-          />
-        )}
-
-        {sheetMode === "discover" && (
-          <DiscoverSheet onViewOnMap={handleViewOnMap} />
-        )}
+      <BottomSheet snapPoint={snapPoint} onSnapChange={handleSnapChange} label={sheetLabel} accent={sheetAccent}>
+        {/* Render all sheets; hide inactive so scroll position is preserved when switching */}
+        <div className="relative h-full">
+          <div
+            className="absolute inset-0 h-full overflow-y-auto"
+            style={{ visibility: sheetMode === "place" ? "visible" : "hidden", pointerEvents: sheetMode === "place" ? "auto" : "none" }}
+          >
+            <ThisPlacePanel
+              activePlace={activePlace}
+              paleoData={paleoData}
+              dropPinMode={dropPinMode}
+              onActivateDropPin={handleActivateDropPin}
+              onClearPlace={onClearPlace}
+              onSetTimeStop={onSetTimeStop}
+              onFlyToPlace={handleFlyToPlace}
+            />
+          </div>
+          <div
+            className="absolute inset-0 h-full overflow-y-auto"
+            style={{ visibility: sheetMode === "feed" ? "visible" : "hidden", pointerEvents: sheetMode === "feed" ? "auto" : "none" }}
+          >
+            <FeedSheet
+              cards={rankedCards}
+              newCardIds={newCardIds}
+              loading={loading}
+              error={error}
+              onCardSelect={handleCardSelect}
+              onSearchArea={onSearchArea}
+              onSurpriseMe={onSurpriseMe}
+              onOpenDiscover={openDiscover}
+              onWander={props.onWander}
+              activeEra={activeEra}
+              onEraChange={onEraChange}
+              activeSources={activeSources}
+              onToggleSource={onToggleSource}
+              activeKinds={activeKinds}
+              onToggleKind={onToggleKind}
+              hasActiveFilters={hasActiveFilters}
+              onResetFilters={onResetFilters}
+              hasPbdb={cards.some((c) => c.source === "pbdb")}
+            />
+          </div>
+          <div
+            className="absolute inset-0 h-full overflow-y-auto"
+            style={{ visibility: sheetMode === "detail" && selected ? "visible" : "hidden", pointerEvents: sheetMode === "detail" && selected ? "auto" : "none" }}
+          >
+            {selected && (
+              <DetailSheet
+                card={selected}
+                onClose={handleCloseDetail}
+                ma={deepTimeEnabled ? ma : null}
+                paleoLat={paleoData?.paleoLat}
+                paleoLng={paleoData?.paleoLng}
+                nearbyFossilCount={nearbyFossilCount}
+                isSaved={isSaved}
+                onToggleSave={handleToggleSave}
+                seaLevelOverride={seaLevelOverride}
+                paleoEnabled={paleoEnabled}
+                overlayBoost={overlayBoost}
+              />
+            )}
+          </div>
+          <div
+            className="absolute inset-0 h-full overflow-y-auto"
+            style={{ visibility: sheetMode === "time" ? "visible" : "hidden", pointerEvents: sheetMode === "time" ? "auto" : "none" }}
+          >
+            <TimeSheet
+              activeEra={activeEra}
+              onEraChange={onEraChange}
+              deepTimeEnabled={deepTimeEnabled}
+              onDeepTimeToggle={onDeepTimeToggle}
+              ma={ma}
+              onMaChange={onMaChange}
+              historicalYears={historicalYears}
+              onHistoricalYearsChange={onHistoricalYearsChange}
+              seaLevelOverride={seaLevelOverride}
+              onSeaLevelChange={onSeaLevelChange}
+              overlayBoost={overlayBoost}
+              onOverlayBoostToggle={onOverlayBoostToggle}
+              paleoEnabled={paleoEnabled}
+              onPaleoToggle={onPaleoToggle}
+              paleoOpacity={paleoOpacity}
+              onPaleoOpacityChange={onPaleoOpacityChange}
+              paleoData={paleoData}
+              mapTheme={mapTheme}
+              onMapThemeChange={onMapThemeChange}
+            />
+          </div>
+          <div
+            className="absolute inset-0 h-full overflow-y-auto"
+            style={{ visibility: sheetMode === "finds" ? "visible" : "hidden", pointerEvents: sheetMode === "finds" ? "auto" : "none" }}
+          >
+            <FindsSheet
+              saves={savedPlaces}
+              onSelect={handleRestoreFind}
+              onUnsave={onUnsavePlace}
+            />
+          </div>
+          <div
+            className="absolute inset-0 h-full overflow-y-auto"
+            style={{ visibility: sheetMode === "discover" ? "visible" : "hidden", pointerEvents: sheetMode === "discover" ? "auto" : "none" }}
+          >
+            <DiscoverSheet onViewOnMap={handleViewOnMap} />
+          </div>
+        </div>
       </BottomSheet>
     </div>
   );

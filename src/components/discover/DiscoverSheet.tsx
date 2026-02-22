@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DISCOVER_ENTRIES, TAG_LABELS, type DiscoverEntry, type DiscoverTag } from "@/data/discover";
 import { TIME_STOPS } from "@/domain/thisPlace";
 import type { ActivePlace, TimeStopDef } from "@/domain/thisPlace";
@@ -9,8 +9,34 @@ import type { PlaceDossier } from "@/lib/dossier/types";
 
 // ---------------------------------------------------------------------------
 // DiscoverSheet — curated geological and historical archive
-// Self-contained list ↔ detail navigation with tag filtering.
+// First-class sheet: rich cards, read state, Random Article, imagery fallbacks.
 // ---------------------------------------------------------------------------
+
+const READ_STORAGE_KEY = "substrata_read_archive";
+
+function getReadIds(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(READ_STORAGE_KEY);
+    if (raw) {
+      const arr = JSON.parse(raw) as string[];
+      return new Set(Array.isArray(arr) ? arr : []);
+    }
+  } catch {
+    // ignore
+  }
+  return new Set();
+}
+
+function markAsRead(id: string): void {
+  try {
+    const set = getReadIds();
+    set.add(id);
+    localStorage.setItem(READ_STORAGE_KEY, JSON.stringify([...set]));
+  } catch {
+    // ignore
+  }
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -29,14 +55,51 @@ function formatEntryTime(entry: DiscoverEntry): string {
   return "";
 }
 
-// ── Image with fade-in + error fallback ──────────────────────────────────────
+/** Metadata label for card: e.g. "Permian Period · 252 Ma" */
+function entryMetadataLabel(entry: DiscoverEntry): string {
+  const time = formatEntryTime(entry);
+  if (time && entry.era) return `${entry.era} · ${time}`;
+  return entry.era || time || "";
+}
 
-function EntryImage({ src, alt, className = "" }: { src: string; alt: string; className?: string }) {
+/** Contextual placeholder gradient when image fails (by tag/period) */
+function getPlaceholderStyle(entry: DiscoverEntry): React.CSSProperties {
+  if (entry.tags.includes("ice")) {
+    return { background: "linear-gradient(180deg, rgba(180,200,220,0.85) 0%, rgba(100,120,140,0.95) 100%)" };
+  }
+  if (entry.tags.includes("eruption") || entry.tags.includes("extinction")) {
+    return { background: "linear-gradient(180deg, rgba(90,40,20,0.85) 0%, rgba(50,22,12,0.95) 100%)" };
+  }
+  if (entry.tags.includes("tectonics")) {
+    return { background: "linear-gradient(180deg, rgba(60,50,45,0.9) 0%, rgba(35,28,24,0.95) 100%)" };
+  }
+  if (entry.ma != null && entry.ma > 200) {
+    return { background: "linear-gradient(180deg, rgba(28,48,36,0.9) 0%, rgba(18,28,22,0.95) 100%)" };
+  }
+  return { background: "linear-gradient(180deg, rgba(18,48,72,0.9) 0%, rgba(8,24,40,0.95) 100%)" };
+}
+
+// ── Image with fade-in + contextual placeholder on error ─────────────────────
+
+function EntryImage({
+  src,
+  alt,
+  className = "",
+  placeholderStyle,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+  placeholderStyle?: React.CSSProperties;
+}) {
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
 
   return (
-    <div className={`relative bg-[rgba(255,255,255,0.03)] overflow-hidden ${className}`}>
+    <div
+      className={`relative overflow-hidden ${className}`}
+      style={errored && placeholderStyle ? placeholderStyle : undefined}
+    >
       {!errored && (
         <img
           src={src}
@@ -45,14 +108,14 @@ function EntryImage({ src, alt, className = "" }: { src: string; alt: string; cl
           onLoad={() => setLoaded(true)}
           onError={() => setErrored(true)}
           className={[
-            "w-full h-full object-cover transition-opacity duration-700",
+            "w-full h-full object-cover transition-opacity duration-300",
             loaded ? "opacity-100" : "opacity-0",
           ].join(" ")}
         />
       )}
-      {errored && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[9px] text-zinc-700 italic">Image unavailable</span>
+      {errored && !placeholderStyle && (
+        <div className="absolute inset-0 flex items-center justify-center bg-[rgba(255,255,255,0.03)]">
+          <span className="text-[9px] text-zinc-600 italic">Image unavailable</span>
         </div>
       )}
     </div>
@@ -84,7 +147,7 @@ function FilterChips({
           key={f.key}
           onClick={() => onChange(f.key)}
           className={[
-            "flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] border transition-all duration-150 whitespace-nowrap",
+            "flex-shrink-0 px-2.5 py-1.5 min-h-[44px] rounded-full text-[10px] border transition-all duration-150 whitespace-nowrap flex items-center",
             active === f.key
               ? "bg-[rgba(31,90,92,0.22)] border-[rgba(44,111,116,0.42)] text-zinc-100 font-medium"
               : "bg-[rgba(255,255,255,0.03)] border-[rgba(255,255,255,0.07)] text-zinc-500 hover:text-zinc-300",
@@ -103,10 +166,14 @@ function DiscoverList({
   filter,
   onFilterChange,
   onSelect,
+  readIds,
+  onRandomArticle,
 }: {
   filter: DiscoverTag | "all";
   onFilterChange: (f: DiscoverTag | "all") => void;
   onSelect: (entry: DiscoverEntry) => void;
+  readIds: Set<string>;
+  onRandomArticle: () => void;
 }) {
   const filtered =
     filter === "all"
@@ -115,72 +182,114 @@ function DiscoverList({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="px-4 pb-3 border-b border-[rgba(255,255,255,0.05)] flex-shrink-0 space-y-2.5">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-[14px] font-semibold tracking-tight text-zinc-100">Archive</h2>
+      {/* Header — first-class Archive identity */}
+      <div className="px-4 pb-3 border-b border-[rgba(255,255,255,0.05)] flex-shrink-0 space-y-3">
+        <div>
+          <h1 className="text-[22px] font-semibold tracking-tight text-zinc-50">
+            Archive
+          </h1>
+          <p className="text-[12px] text-zinc-500 mt-0.5">
+            Events and intervals across Earth&apos;s past
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={onRandomArticle}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[rgba(160,130,95,0.45)] bg-[rgba(160,130,95,0.12)] hover:bg-[rgba(160,130,95,0.18)] text-[#B8986E] text-[12px] font-medium transition min-h-[44px]"
+            aria-label="Open a random article"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M16 3h5v5" />
+              <path d="M4 20L21 3" />
+              <path d="M21 16v5h-5" />
+              <path d="M15 15l6 6" />
+              <path d="M4 4l5 5" />
+            </svg>
+            Random Article
+          </button>
           <span className="text-[10px] text-zinc-600">
             {filter === "all"
               ? `${DISCOVER_ENTRIES.length} entries`
               : `${filtered.length} of ${DISCOVER_ENTRIES.length}`}
           </span>
         </div>
+
         <FilterChips active={filter} onChange={onFilterChange} />
       </div>
 
-      {/* Entry list */}
+      {/* Entry list — rich cards with thumbnail, metadata, read state */}
       <div className="flex-1 overflow-y-auto sheet-container divide-y divide-[rgba(255,255,255,0.04)]">
         {filtered.length === 0 ? (
           <div className="px-4 pt-10 text-center text-[12px] text-zinc-600">
             No entries in this category.
           </div>
         ) : (
-          filtered.map((entry) => (
-            <button
-              key={entry.id}
-              onClick={() => onSelect(entry)}
-              className="w-full text-left px-4 py-3.5 flex items-start gap-3 hover:bg-[rgba(255,255,255,0.025)] transition group"
-            >
-              {/* Thumbnail */}
-              <EntryImage
-                src={entry.image}
-                alt={entry.title}
-                className="w-14 h-14 flex-shrink-0 rounded-lg"
-              />
+          filtered.map((entry) => {
+            const isRead = readIds.has(entry.id);
+            const metaLabel = entryMetadataLabel(entry);
+            const descLine = entry.subtitle ?? entry.description.split("\n\n")[0].slice(0, 100);
+            return (
+              <button
+                key={entry.id}
+                onClick={() => onSelect(entry)}
+                className="w-full text-left px-4 py-3.5 flex items-start gap-3 hover:bg-[rgba(255,255,255,0.025)] transition group min-h-[44px]"
+              >
+                {/* Thumbnail — always visible, fallback gradient on error */}
+                <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-[rgba(255,255,255,0.03)]">
+                  <EntryImage
+                    src={entry.image}
+                    alt=""
+                    className="w-full h-full"
+                    placeholderStyle={getPlaceholderStyle(entry)}
+                  />
+                </div>
 
-              {/* Text */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-2 flex-wrap">
-                  <span className="text-[13px] font-medium text-zinc-200 leading-snug">
-                    {entry.title}
-                  </span>
-                  {formatEntryTime(entry) && (
-                    <span className="text-[10px] text-zinc-500 tabular-nums flex-shrink-0">
-                      {formatEntryTime(entry)}
+                {/* Text */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <span
+                      className={[
+                        "text-[13px] font-medium leading-snug",
+                        isRead ? "text-zinc-500 opacity-80" : "text-zinc-200",
+                      ].join(" ")}
+                    >
+                      {entry.title}
+                    </span>
+                    {isRead && (
+                      <span className="text-[9px] font-medium uppercase tracking-wider text-[#B8986E]">
+                        Read
+                      </span>
+                    )}
+                  </div>
+                  {metaLabel && (
+                    <span className="text-[10px] text-zinc-600 mt-0.5 block">
+                      {metaLabel}
                     </span>
                   )}
+                  <p className="text-[11px] text-zinc-500 mt-0.5 leading-snug line-clamp-2">
+                    {descLine}
+                  </p>
                 </div>
-                <p className="text-[11px] text-zinc-500 mt-0.5 leading-snug line-clamp-2">
-                  {entry.subtitle ?? entry.description.split("\n\n")[0].slice(0, 100)}
-                </p>
-              </div>
 
-              {/* Chevron */}
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="flex-shrink-0 text-zinc-600 group-hover:text-zinc-400 transition mt-1"
-              >
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
-          ))
+                {/* Chevron */}
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="flex-shrink-0 text-zinc-600 group-hover:text-zinc-400 transition mt-1"
+                >
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+            );
+          })
         )}
 
         {/* Footer */}
@@ -192,20 +301,69 @@ function DiscoverList({
   );
 }
 
+// ── Related articles (same tags, exclude current) ─────────────────────────────
+
+function RelatedArticles({
+  entry,
+  onSelect,
+}: {
+  entry: DiscoverEntry;
+  onSelect: (e: DiscoverEntry) => void;
+}) {
+  const related = useMemo(() => {
+    const sameTag = entry.tags[0];
+    if (!sameTag) return [];
+    return DISCOVER_ENTRIES.filter(
+      (e) => e.id !== entry.id && e.tags.includes(sameTag)
+    ).slice(0, 3);
+  }, [entry]);
+
+  if (related.length === 0) return null;
+
+  return (
+    <div className="pt-6 mt-6 border-t border-[rgba(255,255,255,0.06)]">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">
+        Related Articles
+      </div>
+      <div className="space-y-2">
+        {related.map((e) => (
+          <button
+            key={e.id}
+            type="button"
+            onClick={() => onSelect(e)}
+            className="block w-full text-left text-[12px] text-[#B8986E] hover:text-[#C4A86A] transition py-1 min-h-[44px] flex items-center"
+          >
+            {e.title}
+            <span className="text-[10px] text-zinc-600 ml-1.5 tabular-nums">
+              {formatEntryTime(e)}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Detail view ───────────────────────────────────────────────────────────────
 
 function DiscoverDetail({
   entry,
   onBack,
   onViewOnMap,
+  onSelectRelated,
 }: {
   entry: DiscoverEntry;
   onBack: () => void;
   onViewOnMap?: (params: { lat: number; lng: number; ma?: number }) => void;
+  onSelectRelated: (e: DiscoverEntry) => void;
 }) {
   const paragraphs = entry.description.split("\n\n").filter(Boolean);
   const timeLabel = formatEntryTime(entry);
   const canNavigate = entry.lat !== undefined && entry.lng !== undefined && onViewOnMap;
+
+  useEffect(() => {
+    markAsRead(entry.id);
+  }, [entry.id]);
 
   return (
     <div className="flex flex-col h-full">
@@ -221,8 +379,15 @@ function DiscoverDetail({
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto sheet-container">
-        {/* Image (full-width, 16:9) */}
-        <EntryImage src={entry.image} alt={entry.title} className="w-full aspect-video" />
+        {/* Image (full-width, 16:9) — placeholder on error */}
+        <div className="w-full aspect-video flex-shrink-0 bg-[rgba(255,255,255,0.03)]">
+          <EntryImage
+            src={entry.image}
+            alt={entry.title}
+            className="w-full h-full"
+            placeholderStyle={getPlaceholderStyle(entry)}
+          />
+        </div>
 
         {/* Credit */}
         {entry.imageCredit && (
@@ -275,7 +440,7 @@ function DiscoverDetail({
                 onClick={() =>
                   onViewOnMap({ lat: entry.lat!, lng: entry.lng!, ma: entry.ma })
                 }
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[rgba(44,111,116,0.50)] bg-[rgba(31,90,92,0.20)] hover:bg-[rgba(31,90,92,0.35)] text-[#89CDD1] text-[12px] font-medium transition"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[rgba(44,111,116,0.50)] bg-[rgba(31,90,92,0.20)] hover:bg-[rgba(31,90,92,0.35)] text-[#89CDD1] text-[12px] font-medium transition min-h-[44px]"
               >
                 <svg
                   width="13" height="13"
@@ -295,6 +460,9 @@ function DiscoverDetail({
               </button>
             </div>
           )}
+
+          {/* Related Articles */}
+          <RelatedArticles entry={entry} onSelect={onSelectRelated} />
         </div>
       </div>
     </div>
@@ -378,20 +546,42 @@ export default function DiscoverSheet({
   const [view, setView] = useState<"list" | "detail">("list");
   const [selected, setSelected] = useState<DiscoverEntry | null>(null);
   const [filter, setFilter] = useState<DiscoverTag | "all">("all");
+  const [readIds, setReadIds] = useState<Set<string>>(getReadIds);
 
-  const handleSelect = (entry: DiscoverEntry) => {
+  const handleSelect = useCallback((entry: DiscoverEntry) => {
     setSelected(entry);
     setView("detail");
-  };
+  }, []);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     setView("list");
     setSelected(null);
-  };
+    setReadIds(getReadIds());
+  }, []);
+
+  const handleRandomArticle = useCallback(() => {
+    const entry = DISCOVER_ENTRIES[Math.floor(Math.random() * DISCOVER_ENTRIES.length)];
+    handleSelect(entry);
+  }, [handleSelect]);
 
   if (view === "detail" && selected) {
-    return <DiscoverDetail entry={selected} onBack={handleBack} onViewOnMap={onViewOnMap} />;
+    return (
+      <DiscoverDetail
+        entry={selected}
+        onBack={handleBack}
+        onViewOnMap={onViewOnMap}
+        onSelectRelated={handleSelect}
+      />
+    );
   }
 
-  return <DiscoverList filter={filter} onFilterChange={setFilter} onSelect={handleSelect} />;
+  return (
+    <DiscoverList
+      filter={filter}
+      onFilterChange={setFilter}
+      onSelect={handleSelect}
+      readIds={readIds}
+      onRandomArticle={handleRandomArticle}
+    />
+  );
 }

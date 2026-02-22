@@ -157,7 +157,7 @@ export function useBottomSheet(
 
   const sheetStyle: React.CSSProperties = {
     transform: `translateY(${translateY}px)`,
-    transition: isDragging ? "none" : "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+    transition: isDragging ? "none" : "transform 220ms ease",
     willChange: "transform",
     // dvh tracks the dynamic viewport (Safari toolbar show/hide) so the JS
     // translateY calculations and the CSS height stay in sync on iOS Safari.
