@@ -129,7 +129,7 @@ function PeriodContext({
         </div>
 
         {/* Summary */}
-        <p className="text-[11.5px] text-zinc-400 leading-relaxed">{period.summary}</p>
+        <p className="text-[12px] text-zinc-400 leading-relaxed">{period.summary}</p>
 
         {/* Environmental stats */}
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-zinc-600">
@@ -142,11 +142,11 @@ function PeriodContext({
         <SeaLevelBar seaLevel={seaLevel} isLGM={isLGM} />
 
         {/* Life */}
-        <p className="text-[10.5px] text-zinc-500 italic">{period.life}</p>
+        <p className="text-[11px] text-zinc-500 italic">{period.life}</p>
 
         {/* LGM note */}
         {isLGM && (
-          <div className="text-[10.5px] text-sky-400/70 pt-1 border-t border-[rgba(255,255,255,0.04)]">
+          <div className="text-[11px] text-sky-400/70 pt-1 border-t border-[rgba(255,255,255,0.04)]">
             <span className="font-medium">Ice Age active</span> — continental ice sheets shown on
             map. Land bridges exposed. Doggerland, Beringia, Sundaland connected.
           </div>
@@ -154,7 +154,7 @@ function PeriodContext({
 
         {/* Paleolatitude */}
         {paleoData?.paleoLat != null && (
-          <div className="text-[10.5px] text-zinc-500 pt-1 border-t border-[rgba(255,255,255,0.04)]">
+          <div className="text-[11px] text-zinc-500 pt-1 border-t border-[rgba(255,255,255,0.04)]">
             <span className="text-zinc-400">This location at {formatMa(ma)}:</span>{" "}
             ~{Math.abs(paleoData.paleoLat).toFixed(1)}°{" "}
             {paleoData.paleoLat >= 0 ? "N" : "S"}
@@ -234,7 +234,7 @@ function EraContext({ era }: { era: Era }) {
       <div className="text-[10px] uppercase tracking-widest text-zinc-600 font-medium mb-1">
         {ERA_LABELS[era]}
       </div>
-      <p className="text-[11.5px] text-zinc-500 leading-relaxed">{ERA_DESCRIPTIONS[era]}</p>
+      <p className="text-[12px] text-zinc-500 leading-relaxed">{ERA_DESCRIPTIONS[era]}</p>
     </div>
   );
 }

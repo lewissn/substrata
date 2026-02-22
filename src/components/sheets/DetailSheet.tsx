@@ -124,9 +124,9 @@ export default function DetailSheet({
         <div className="flex items-center gap-1.5">
           <button
             onClick={handleShare}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] text-zinc-500 hover:text-zinc-300 text-[11px] transition"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] text-zinc-500 hover:text-zinc-300 text-[11px] transition min-h-[36px]"
           >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
               <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
             </svg>
@@ -138,7 +138,7 @@ export default function DetailSheet({
               onClick={onToggleSave}
               aria-label={isSaved ? "Remove from My Finds" : "Save to My Finds"}
               className={[
-                "p-1.5 rounded-lg border transition",
+                "p-2 rounded-lg border transition min-h-[36px] min-w-[36px] flex items-center justify-center",
                 isSaved
                   ? "border-[rgba(44,111,116,0.40)] bg-[rgba(31,90,92,0.15)] text-[#89CDD1]"
                   : "border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] text-zinc-500 hover:text-zinc-300",
@@ -237,7 +237,7 @@ export default function DetailSheet({
         )}
 
         {attribution && (
-          <div className="pt-2 border-t border-[rgba(255,255,255,0.04)] text-[9px] text-zinc-700">
+          <div className="pt-2 border-t border-[rgba(255,255,255,0.04)] text-[10px] text-zinc-700">
             {attribution}
           </div>
         )}

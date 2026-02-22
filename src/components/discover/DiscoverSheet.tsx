@@ -127,7 +127,7 @@ function DiscoverList({
       {/* Entry list */}
       <div className="flex-1 overflow-y-auto sheet-container divide-y divide-[rgba(255,255,255,0.04)]">
         {filtered.length === 0 ? (
-          <div className="px-4 pt-10 text-center text-[12px] text-zinc-700">
+          <div className="px-4 pt-10 text-center text-[12px] text-zinc-600">
             No entries in this category.
           </div>
         ) : (
@@ -151,12 +151,12 @@ function DiscoverList({
                     {entry.title}
                   </span>
                   {formatEntryTime(entry) && (
-                    <span className="text-[10px] text-zinc-600 tabular-nums flex-shrink-0">
+                    <span className="text-[10px] text-zinc-500 tabular-nums flex-shrink-0">
                       {formatEntryTime(entry)}
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] text-zinc-600 mt-0.5 leading-snug line-clamp-2">
+                <p className="text-[11px] text-zinc-500 mt-0.5 leading-snug line-clamp-2">
                   {entry.subtitle ?? entry.description.split("\n\n")[0].slice(0, 100)}
                 </p>
               </div>
@@ -171,7 +171,7 @@ function DiscoverList({
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="flex-shrink-0 text-zinc-700 group-hover:text-zinc-500 transition mt-1"
+                className="flex-shrink-0 text-zinc-600 group-hover:text-zinc-400 transition mt-1"
               >
                 <polyline points="9 18 15 12 9 6" />
               </svg>
@@ -180,7 +180,7 @@ function DiscoverList({
         )}
 
         {/* Footer */}
-        <div className="px-4 py-4 text-[10px] text-zinc-800 leading-relaxed">
+        <div className="px-4 py-4 text-[10px] text-zinc-700 leading-relaxed">
           Images: public domain or Creative Commons via Wikimedia Commons.
         </div>
       </div>
@@ -209,7 +209,7 @@ function DiscoverDetail({
       <div className="px-4 pb-2 flex items-center flex-shrink-0">
         <button
           onClick={onBack}
-          className="text-[12px] text-zinc-400 hover:text-zinc-200 transition min-h-[36px] flex items-center gap-1"
+          className="text-[12px] text-zinc-400 hover:text-zinc-200 transition min-h-[44px] flex items-center gap-1.5"
         >
           <span aria-hidden="true">&larr;</span> Archive
         </button>

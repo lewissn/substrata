@@ -42,8 +42,12 @@ export default function FeedSheet({
           {onOpenDiscover && (
             <button
               onClick={onOpenDiscover}
-              className="ml-1 px-2.5 py-1 rounded-lg border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.06)] text-zinc-500 hover:text-zinc-300 text-[10px] transition"
+              className="ml-1 flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.06)] text-zinc-500 hover:text-zinc-300 text-[10px] transition"
             >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+              </svg>
               Archive
             </button>
           )}
