@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Map from "@/components/Map";
 import BottomSheet from "@/components/sheets/BottomSheet";
 import FeedSheet from "@/components/sheets/FeedSheet";
@@ -57,6 +57,18 @@ export default function MobileLayout(props: LayoutProps) {
       setSnapPoint("half");
     }
   }, [selected]);
+
+  // When the user places a pin, dropPinMode goes true → false.
+  // Detect that transition and re-open "This Place" so the content is visible.
+  const prevDropPinRef = useRef(dropPinMode);
+  useEffect(() => {
+    const wasDropping = prevDropPinRef.current;
+    prevDropPinRef.current = dropPinMode;
+    if (wasDropping && !dropPinMode && activePlace) {
+      setSheetMode("place");
+      setSnapPoint("half");
+    }
+  }, [dropPinMode, activePlace]);
 
   const handleCardSelect = useCallback(
     (card: Parameters<typeof onCardSelect>[0]) => onCardSelect(card),
