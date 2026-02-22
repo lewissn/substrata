@@ -83,10 +83,10 @@ export async function fetchFossilEnrichment(
       }
     }
 
-    // Sort by count desc, then distance asc; take top 3
+    // Sort by count desc, then distance asc; take top 7
     const sorted = [...grouped.entries()]
       .sort((a, b) => b[1].count - a[1].count || a[1].minDistKm - b[1].minDistKm)
-      .slice(0, 3);
+      .slice(0, 7);
 
     const taxa: FossilTaxon[] = sorted.map(([name, info]) => ({
       name,

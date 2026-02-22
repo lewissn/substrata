@@ -1,7 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { DISCOVER_ENTRIES, TAG_LABELS, type DiscoverEntry, type DiscoverTag } from "@/data/discover";
+import { TIME_STOPS } from "@/domain/thisPlace";
+import type { ActivePlace, TimeStopDef } from "@/domain/thisPlace";
+import { buildPlaceDossier } from "@/lib/dossier/buildPlaceDossier";
+import type { PlaceDossier } from "@/lib/dossier/types";
 
 // ---------------------------------------------------------------------------
 // DiscoverSheet — curated geological and historical archive
@@ -259,6 +263,11 @@ function DiscoverDetail({
             ))}
           </div>
 
+          {/* Mini-dossier: local environmental context */}
+          {entry.lat != null && entry.lng != null && entry.ma != null && (
+            <MiniDossier lat={entry.lat} lng={entry.lng} ma={entry.ma} />
+          )}
+
           {/* View on Map */}
           {canNavigate && (
             <div className="pt-2">
@@ -288,6 +297,73 @@ function DiscoverDetail({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Mini dossier — local environmental context for geolocated entries ────────
+
+function findNearestStop(ma: number): TimeStopDef {
+  const deepStops = TIME_STOPS.filter((s) => s.ma != null && s.ma > 0);
+  let best = deepStops[0];
+  let bestDist = Math.abs((best.ma ?? 0) - ma);
+  for (const s of deepStops) {
+    const d = Math.abs((s.ma ?? 0) - ma);
+    if (d < bestDist) {
+      best = s;
+      bestDist = d;
+    }
+  }
+  return best;
+}
+
+function MiniDossier({ lat, lng, ma }: { lat: number; lng: number; ma: number }) {
+  const dossier: PlaceDossier | null = useMemo(() => {
+    if (ma <= 0) return null;
+    const stop = findNearestStop(ma);
+    const place: ActivePlace = {
+      id: `archive-${lat}-${lng}`,
+      title: "Archive location",
+      lat,
+      lng,
+      source: "custom",
+    };
+    return buildPlaceDossier({ place, stop, paleoData: null });
+  }, [lat, lng, ma]);
+
+  if (!dossier) return null;
+
+  return (
+    <div className="rounded-lg border border-[rgba(44,111,116,0.20)] bg-[rgba(31,90,92,0.06)] p-3 space-y-2">
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-[#89CDD1]">
+        What was here
+      </div>
+
+      {/* Setting badges */}
+      <div className="flex flex-wrap gap-1.5">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-[rgba(140,158,96,0.12)] border border-[rgba(140,158,96,0.25)] text-[9px] font-medium text-[#B0C478]">
+          {dossier.setting.biome}
+        </span>
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-[rgba(44,111,116,0.10)] border border-[rgba(44,111,116,0.22)] text-[9px] font-medium text-[#89CDD1]">
+          {dossier.setting.settingLabel}
+        </span>
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] text-[9px] font-medium text-zinc-500">
+          {dossier.setting.paleolatBand.charAt(0).toUpperCase() + dossier.setting.paleolatBand.slice(1)}
+        </span>
+      </div>
+
+      {/* Brief narrative */}
+      <p className="text-[11px] text-zinc-400 leading-relaxed">
+        {dossier.narrative.summary}
+      </p>
+
+      {/* Geology note */}
+      {dossier.geology.lithology && (
+        <div className="text-[10px] text-zinc-600">
+          <span className="font-medium text-zinc-500">Typical rocks:</span>{" "}
+          {dossier.geology.lithology}
+        </div>
+      )}
     </div>
   );
 }
