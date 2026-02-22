@@ -1,6 +1,7 @@
 import type { Era, PlaceCard, PlaceKind, PlaceSource } from "@/domain/placeCard";
 import type { ReconstructionResult } from "@/app/api/reconstruct/route";
 import type { MapTheme } from "@/components/Map";
+import type { SavedPlace } from "@/domain/savedPlaces";
 
 /**
  * Shared prop interface for DesktopLayout and MobileLayout.
@@ -15,7 +16,7 @@ export type LayoutProps = {
   loading: boolean;
 
   // Cards
-  cards: PlaceCard[]; // full list (for "show pbdb chip" logic)
+  cards: PlaceCard[];
   rankedCards: PlaceCard[];
   newCardIds: Set<string>;
   error: string | null;
@@ -64,4 +65,10 @@ export type LayoutProps = {
 
   // Actions
   onSurpriseMe: () => void;
+
+  // My Finds
+  savedPlaces: SavedPlace[];
+  onSavePlace: (card: PlaceCard) => void;
+  onUnsavePlace: (id: string) => void;
+  onRestoreFind: (place: SavedPlace) => void;
 };

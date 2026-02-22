@@ -15,6 +15,7 @@ export type GeoPeriod = {
   summary: string; // 1–2 sentence "world feel"
   life: string; // representative organisms/biomes
   color: string; // accent colour for UI
+  wikiPage?: string; // Wikipedia article title — used to fetch a representative thumbnail
 };
 
 export const PERIODS: GeoPeriod[] = [
@@ -30,6 +31,7 @@ export const PERIODS: GeoPeriod[] = [
     summary: "The stable warm period that allowed human civilisation to flourish. Agriculture, cities, and written history all emerged in this window.",
     life: "Modern ecosystems, megafauna recently extinct, human dominance",
     color: "#a0a0b0",
+    wikiPage: "Holocene",
   },
   {
     name: "Pleistocene",
@@ -43,6 +45,7 @@ export const PERIODS: GeoPeriod[] = [
     summary: "The age of ice ages. Continental glaciers repeatedly covered northern continents. Sea levels dropped dramatically, exposing land bridges. Early humans migrated across shifting landscapes.",
     life: "Mammoths, sabre-tooth cats, Neanderthals, early Homo sapiens, megafauna",
     color: "#7894b4",
+    wikiPage: "Pleistocene",
   },
   {
     name: "Pliocene",
@@ -56,6 +59,7 @@ export const PERIODS: GeoPeriod[] = [
     summary: "A warm world slowly cooling. The Isthmus of Panama closed, reshaping ocean currents. Grasslands expanded. Early hominids walked upright in Africa.",
     life: "Australopithecus, grazing mammals, expanding grasslands",
     color: "#b98c50",
+    wikiPage: "Pliocene",
   },
   {
     name: "Miocene",
@@ -69,6 +73,7 @@ export const PERIODS: GeoPeriod[] = [
     summary: "A warm world with vast grasslands and kelp forests. The Himalayas rose, reshaping Asian monsoons. Apes diversified across Africa and Eurasia.",
     life: "Great apes, horses, whales, grasslands, kelp forests",
     color: "#b98c50",
+    wikiPage: "Miocene",
   },
   {
     name: "Oligocene",
@@ -82,6 +87,7 @@ export const PERIODS: GeoPeriod[] = [
     summary: "Antarctica became isolated and began freezing. The world shifted from greenhouse to icehouse. Modern mammal families diversified.",
     life: "Early cats, dogs, bears; forests give way to grasslands",
     color: "#b98c50",
+    wikiPage: "Oligocene",
   },
   {
     name: "Eocene",
@@ -95,6 +101,7 @@ export const PERIODS: GeoPeriod[] = [
     summary: "The hottest period in the last 65 million years. Crocodilians near the Arctic. Forests covered Antarctica. Modern mammal orders emerged.",
     life: "Early horses, whales returning to sea, tropical forests worldwide",
     color: "#d4a850",
+    wikiPage: "Eocene",
   },
   {
     name: "Paleocene",
@@ -108,6 +115,7 @@ export const PERIODS: GeoPeriod[] = [
     summary: "Life recovered from the mass extinction that ended the dinosaurs. Mammals diversified rapidly into vacated ecological niches. Birds became the dominant dinosaur survivors.",
     life: "Small mammals diversifying, archaic hoofed mammals, early primates",
     color: "#d4a850",
+    wikiPage: "Paleocene",
   },
   {
     name: "Cretaceous",
@@ -121,6 +129,7 @@ export const PERIODS: GeoPeriod[] = [
     summary: "The golden age of dinosaurs. Flowering plants appeared and transformed terrestrial ecosystems. Ended with the Chicxulub asteroid impact — one of Earth's five great mass extinctions.",
     life: "T. rex, Triceratops, flowering plants, mosasaurs, ammonites",
     color: "#8a9e4a",
+    wikiPage: "Cretaceous",
   },
   {
     name: "Jurassic",
@@ -134,6 +143,7 @@ export const PERIODS: GeoPeriod[] = [
     summary: "Pangaea began breaking apart. Dinosaurs dominated every continent. The first birds evolved from small theropod dinosaurs. Vast shallow seas covered continental interiors.",
     life: "Sauropods, Allosaurus, Archaeopteryx, marine reptiles, cycads and conifers",
     color: "#6a8e5a",
+    wikiPage: "Jurassic",
   },
   {
     name: "Triassic",
@@ -147,6 +157,7 @@ export const PERIODS: GeoPeriod[] = [
     summary: "Life recovered from the greatest mass extinction in history. The first dinosaurs, mammals, and pterosaurs appeared. Pangaea was intact — one vast supercontinent with brutal interior deserts.",
     life: "First dinosaurs, first mammals, therapsids, conifers, vast deserts",
     color: "#8a6e5a",
+    wikiPage: "Triassic",
   },
   {
     name: "Permian",
@@ -160,6 +171,7 @@ export const PERIODS: GeoPeriod[] = [
     summary: "Pangaea fully assembled. Reptiles dominated land. Ended with the Great Dying — the worst mass extinction in Earth's history, killing 96% of marine species.",
     life: "Synapsids (mammal ancestors), Dimetrodon, early reptiles, seed ferns",
     color: "#b44646",
+    wikiPage: "Permian",
   },
   {
     name: "Carboniferous",
@@ -173,6 +185,7 @@ export const PERIODS: GeoPeriod[] = [
     summary: "Oxygen reached the highest levels in Earth's history. Giant insects flew through vast tropical swamp forests. The coal we burn today formed from these forests. An ice age gripped the southern hemisphere.",
     life: "Giant dragonflies (70cm wingspan), huge millipedes, tree ferns, seed ferns, early amphibians",
     color: "#4a7a4a",
+    wikiPage: "Carboniferous",
   },
   {
     name: "Devonian",
@@ -186,6 +199,7 @@ export const PERIODS: GeoPeriod[] = [
     summary: "The age of fishes — every major group of fish diversified. The first forests appeared and transformed the atmosphere. The first tetrapods crawled onto land.",
     life: "Armoured fish, sharks, first forests, first land vertebrates, trilobites",
     color: "#5a8a8a",
+    wikiPage: "Devonian",
   },
   {
     name: "Silurian",
@@ -199,6 +213,7 @@ export const PERIODS: GeoPeriod[] = [
     summary: "Life recovered from a mass extinction. The first plants and arthropods colonised land. Coral reefs expanded in warm shallow seas. Jawed fish appeared.",
     life: "First land plants, sea scorpions, jawless fish, coral reefs",
     color: "#6a8aaa",
+    wikiPage: "Silurian",
   },
   {
     name: "Ordovician",
@@ -212,6 +227,7 @@ export const PERIODS: GeoPeriod[] = [
     summary: "Marine life diversified spectacularly — the Great Ordovician Biodiversification Event. Ended with a severe ice age and mass extinction as Gondwana drifted over the South Pole.",
     life: "Trilobites, brachiopods, bryozoans, first corals, nautiloids",
     color: "#6a7a9a",
+    wikiPage: "Ordovician",
   },
   {
     name: "Cambrian",
@@ -225,6 +241,7 @@ export const PERIODS: GeoPeriod[] = [
     summary: "The Cambrian Explosion — complex animal life appeared suddenly in the fossil record. Most modern animal phyla originated in this period. The first eyes evolved, triggering an evolutionary arms race.",
     life: "Trilobites, Anomalocaris, Hallucigenia, sponges, early chordates",
     color: "#8a7a6a",
+    wikiPage: "Cambrian",
   },
   {
     name: "Ediacaran",
@@ -238,6 +255,7 @@ export const PERIODS: GeoPeriod[] = [
     summary: "The first complex multicellular life appeared after the Snowball Earth glaciations melted. Strange, soft-bodied organisms unlike anything alive today covered the sea floor.",
     life: "Dickinsonia, Charnia, Kimberella — alien-looking soft-bodied organisms",
     color: "#7a6a8a",
+    wikiPage: "Ediacaran",
   },
 ];
 

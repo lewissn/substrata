@@ -2,9 +2,11 @@
 
 import type { Era } from "@/domain/placeCard";
 import type { MapTheme } from "@/components/Map";
+import type { ReconstructionResult } from "@/app/api/reconstruct/route";
 import EraChips from "./EraChips";
 import MaSlider from "./MaSlider";
 import SeaLevelSlider from "./SeaLevelSlider";
+import ContextPanel from "./ContextPanel";
 import { seaLevelAtMa } from "@/domain/lgm";
 import InstallPrompt from "./pwa/InstallPrompt";
 
@@ -36,6 +38,7 @@ export default function TimeControls({
   onPaleoOpacityChange,
   mapTheme = "terrain",
   onMapThemeChange,
+  paleoData,
 }: {
   activeEra: Era | null;
   onEraChange: (era: Era | null) => void;
@@ -53,21 +56,24 @@ export default function TimeControls({
   onPaleoOpacityChange?: (v: number) => void;
   mapTheme?: MapTheme;
   onMapThemeChange?: (theme: MapTheme) => void;
+  /** Paleo reconstruction data — passed through to ContextPanel for paleolatitude display */
+  paleoData?: ReconstructionResult | null;
 }) {
   return (
     <div className="border-b border-[rgba(255,255,255,0.05)]">
-      {/* Era chips row */}
+      {/* 1. Era chips (when not in Deep Time) */}
       <div className="px-4 pt-3 pb-2">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-[10px] uppercase tracking-widest text-zinc-700 font-medium">Era</span>
+          <span className="text-[10px] uppercase tracking-widest text-zinc-700 font-medium">
+            Era
+          </span>
         </div>
-
         {!deepTimeEnabled && (
           <EraChips activeEra={activeEra} onEraChange={onEraChange} />
         )}
       </div>
 
-      {/* Deep Time — prominent call-to-action block */}
+      {/* 2. Deep Time toggle block */}
       <div className="px-4 pb-3">
         <button
           onClick={onDeepTimeToggle}
@@ -106,16 +112,24 @@ export default function TimeControls({
         </button>
       </div>
 
-      {/* Deep Time slider (conditionally shown) */}
+      {/* 3. Ma slider */}
       {deepTimeEnabled && (
         <div className="px-4 pb-3 pt-1">
           <MaSlider ma={ma} onMaChange={onMaChange} />
         </div>
       )}
 
-      {/* Sea level slider (shown in Deep Time mode) */}
+      {/* 4. Era / period description — narrative-first, immediately after the slider */}
+      <ContextPanel
+        ma={ma}
+        activeEra={activeEra}
+        deepTimeEnabled={deepTimeEnabled}
+        paleoData={paleoData}
+      />
+
+      {/* 5. Sea level slider (Deep Time) */}
       {deepTimeEnabled && ma > 0 && onSeaLevelChange && (
-        <div className="px-4 pb-3 pt-1 border-t border-[rgba(255,255,255,0.04)]">
+        <div className="px-4 pb-3 pt-3 border-t border-[rgba(255,255,255,0.04)]">
           <SeaLevelSlider
             value={seaLevelOverride ?? null}
             onChange={onSeaLevelChange}
@@ -124,25 +138,7 @@ export default function TimeControls({
         </div>
       )}
 
-      {/* Boost overlays toggle (shown in Deep Time mode) */}
-      {deepTimeEnabled && ma > 0 && onOverlayBoostToggle && (
-        <div className="px-4 pb-3 flex items-center justify-between">
-          <span className="text-[10px] text-zinc-600">Boost overlays</span>
-          <button
-            onClick={onOverlayBoostToggle}
-            className={[
-              "text-[10px] px-2.5 py-1 rounded-md border transition-all duration-150",
-              overlayBoost
-                ? "bg-[rgba(31,90,92,0.20)] border-[rgba(44,111,116,0.40)] text-zinc-200 font-medium"
-                : "bg-[rgba(255,255,255,0.02)] border-[rgba(255,255,255,0.06)] text-zinc-600 hover:text-zinc-400",
-            ].join(" ")}
-          >
-            {overlayBoost ? "On" : "Off"}
-          </button>
-        </div>
-      )}
-
-      {/* Paleogeography toggle + opacity slider (shown in Deep Time when ma > 0) */}
+      {/* 6. Paleogeography toggle + opacity (Deep Time) */}
       {deepTimeEnabled && ma > 0 && onPaleoToggle && (
         <div className="px-4 pb-3 border-t border-[rgba(255,255,255,0.04)] pt-2.5">
           <div className="flex items-center justify-between">
@@ -159,7 +155,6 @@ export default function TimeControls({
               {paleoEnabled ? "On" : "Off"}
             </button>
           </div>
-
           {paleoEnabled && onPaleoOpacityChange && (
             <div className="mt-2 flex items-center gap-2.5">
               <input
@@ -178,7 +173,25 @@ export default function TimeControls({
         </div>
       )}
 
-      {/* Map theme picker */}
+      {/* 7. Boost overlays (Deep Time) */}
+      {deepTimeEnabled && ma > 0 && onOverlayBoostToggle && (
+        <div className="px-4 pb-3 flex items-center justify-between border-t border-[rgba(255,255,255,0.04)] pt-2.5">
+          <span className="text-[10px] text-zinc-600">Boost overlays</span>
+          <button
+            onClick={onOverlayBoostToggle}
+            className={[
+              "text-[10px] px-2.5 py-1 rounded-md border transition-all duration-150",
+              overlayBoost
+                ? "bg-[rgba(31,90,92,0.20)] border-[rgba(44,111,116,0.40)] text-zinc-200 font-medium"
+                : "bg-[rgba(255,255,255,0.02)] border-[rgba(255,255,255,0.06)] text-zinc-600 hover:text-zinc-400",
+            ].join(" ")}
+          >
+            {overlayBoost ? "On" : "Off"}
+          </button>
+        </div>
+      )}
+
+      {/* 8. Map theme picker */}
       {onMapThemeChange && (
         <div className="px-4 pb-3 pt-2.5 border-t border-[rgba(255,255,255,0.05)]">
           <span className="text-[10px] uppercase tracking-widest text-zinc-700 font-medium block mb-2">
@@ -203,7 +216,7 @@ export default function TimeControls({
         </div>
       )}
 
-      {/* ── Install prompt — Android/Chrome only, once per session ── */}
+      {/* Install prompt */}
       <InstallPrompt />
     </div>
   );

@@ -1,16 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import Map from "@/components/Map";
 import TimeControls from "@/components/TimeControls";
-import ContextPanel from "@/components/ContextPanel";
 import Feed from "@/components/Feed";
 import Drawer from "@/components/Drawer";
+import FindsSheet from "@/components/sheets/FindsSheet";
 import { Chip, KIND_CHIPS } from "@/components/ui/Chip";
 import { ActiveOverlays } from "@/components/ui/ActiveOverlays";
 import type { LayoutProps } from "./LayoutProps";
+import type { SavedPlace } from "@/domain/savedPlaces";
 
 // ---------------------------------------------------------------------------
-// Desktop layout — verbatim copy of the original page.tsx layout
+// DesktopLayout — map + sidebar
 // ---------------------------------------------------------------------------
 
 export default function DesktopLayout(props: LayoutProps) {
@@ -32,7 +34,17 @@ export default function DesktopLayout(props: LayoutProps) {
     center, onCenterChange,
     mapTheme, onMapThemeChange,
     nearbyFossilCount, onSurpriseMe,
+    savedPlaces, onSavePlace, onUnsavePlace, onRestoreFind,
   } = props;
+
+  const [showFinds, setShowFinds] = useState(false);
+
+  const isSaved = selected ? savedPlaces.some((p) => p.id === selected.id) : false;
+
+  const handleRestoreFind = (place: SavedPlace) => {
+    onRestoreFind(place);
+    setShowFinds(false);
+  };
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
@@ -47,14 +59,12 @@ export default function DesktopLayout(props: LayoutProps) {
             className="w-full px-4 py-2.5 rounded-xl bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] text-zinc-100 text-sm placeholder:text-zinc-600 outline-none focus:ring-2 focus:ring-[rgba(44,111,116,0.35)] focus:border-[rgba(44,111,116,0.40)] transition"
           />
         </div>
-
         <button
           onClick={onGeocode}
           className="px-4 py-2.5 rounded-xl border border-[rgba(255,255,255,0.09)] bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.07)] text-zinc-200 text-sm font-medium transition"
         >
           Go
         </button>
-
         <button
           onClick={onSearchArea}
           disabled={loading}
@@ -69,96 +79,120 @@ export default function DesktopLayout(props: LayoutProps) {
         {/* ── Sidebar ── */}
         <div className="w-[400px] flex-shrink-0 flex flex-col border-r border-[rgba(255,255,255,0.06)] bg-[rgba(9,9,11,1)] overflow-hidden">
           {/* Header */}
-          <div className="px-4 pt-4 pb-3 border-b border-[rgba(255,255,255,0.05)]">
+          <div className="px-4 pt-4 pb-3 border-b border-[rgba(255,255,255,0.05)] flex-shrink-0">
             <div className="flex items-baseline justify-between">
               <h1 className="text-[15px] font-semibold tracking-tight text-zinc-100">Substrata</h1>
-              <span className="text-[11px] text-zinc-600">
-                {rankedCards.length > 0 ? `${rankedCards.length} places` : ""}
-              </span>
+              <div className="flex items-center gap-2">
+                {/* My Finds toggle */}
+                <button
+                  onClick={() => setShowFinds((v) => !v)}
+                  title={showFinds ? "Back to feed" : "My Finds"}
+                  className={[
+                    "p-1.5 rounded-md transition",
+                    showFinds
+                      ? "text-[#89CDD1] bg-[rgba(31,90,92,0.20)]"
+                      : "text-zinc-600 hover:text-zinc-300",
+                  ].join(" ")}
+                  aria-label="My Finds"
+                >
+                  {showFinds ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                    </svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                    </svg>
+                  )}
+                </button>
+                <span className="text-[11px] text-zinc-600">
+                  {showFinds
+                    ? savedPlaces.length > 0
+                      ? `${savedPlaces.length} saved`
+                      : ""
+                    : rankedCards.length > 0
+                    ? `${rankedCards.length} places`
+                    : ""}
+                </span>
+              </div>
             </div>
             <p className="text-[11.5px] text-zinc-600 mt-0.5 tracking-wide">Explore layers of time</p>
           </div>
 
-          {/* ── Time controls ── */}
-          <TimeControls
-            activeEra={activeEra}
-            onEraChange={onEraChange}
-            deepTimeEnabled={deepTimeEnabled}
-            onDeepTimeToggle={onDeepTimeToggle}
-            ma={ma}
-            onMaChange={onMaChange}
-            seaLevelOverride={seaLevelOverride}
-            onSeaLevelChange={onSeaLevelChange}
-            overlayBoost={overlayBoost}
-            onOverlayBoostToggle={onOverlayBoostToggle}
-            paleoEnabled={paleoEnabled}
-            onPaleoToggle={onPaleoToggle}
-            paleoOpacity={paleoOpacity}
-            onPaleoOpacityChange={onPaleoOpacityChange}
-            mapTheme={mapTheme}
-            onMapThemeChange={onMapThemeChange}
-          />
-
-          {/* ── Context panel ── */}
-          <ContextPanel
-            ma={ma}
-            activeEra={activeEra}
-            deepTimeEnabled={deepTimeEnabled}
-            paleoData={paleoData}
-          />
-
-          {/* ── Source + Kind filters ── */}
-          <div className="px-4 pt-3 pb-3 border-b border-[rgba(255,255,255,0.05)]">
-            <div className="text-[10px] uppercase tracking-widest text-zinc-700 mb-2 font-medium">Source</div>
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              <Chip label="Wikipedia" active={activeSources.includes("wikipedia")} onClick={() => onToggleSource("wikipedia")} />
-              <Chip label="OSM" active={activeSources.includes("osm")} onClick={() => onToggleSource("osm")} />
-              {cards.some((c) => c.source === "pbdb") && (
-                <Chip label="Fossils" active={activeSources.includes("pbdb")} onClick={() => onToggleSource("pbdb")} />
-              )}
+          {showFinds ? (
+            /* ── My Finds ── */
+            <div className="flex-1 overflow-hidden">
+              <FindsSheet
+                saves={savedPlaces}
+                onSelect={handleRestoreFind}
+                onUnsave={onUnsavePlace}
+              />
             </div>
-
-            <div className="text-[10px] uppercase tracking-widest text-zinc-700 mb-2 font-medium">Type</div>
-            <div className="flex flex-wrap gap-1.5">
-              {KIND_CHIPS.map(({ kind, label }) => (
-                <Chip
-                  key={kind}
-                  label={label}
-                  active={activeKinds.includes(kind)}
-                  onClick={() => onToggleKind(kind)}
+          ) : (
+            <>
+              {/* ── Time controls (ContextPanel embedded inside at position 4) ── */}
+              <div className="overflow-y-auto flex-shrink-0">
+                <TimeControls
+                  activeEra={activeEra}
+                  onEraChange={onEraChange}
+                  deepTimeEnabled={deepTimeEnabled}
+                  onDeepTimeToggle={onDeepTimeToggle}
+                  ma={ma}
+                  onMaChange={onMaChange}
+                  seaLevelOverride={seaLevelOverride}
+                  onSeaLevelChange={onSeaLevelChange}
+                  overlayBoost={overlayBoost}
+                  onOverlayBoostToggle={onOverlayBoostToggle}
+                  paleoEnabled={paleoEnabled}
+                  onPaleoToggle={onPaleoToggle}
+                  paleoOpacity={paleoOpacity}
+                  onPaleoOpacityChange={onPaleoOpacityChange}
+                  mapTheme={mapTheme}
+                  onMapThemeChange={onMapThemeChange}
+                  paleoData={paleoData}
                 />
-              ))}
-            </div>
+              </div>
 
-            {hasActiveFilters && (
-              <button
-                onClick={onResetFilters}
-                className="mt-2.5 text-[11px] text-zinc-600 hover:text-zinc-400 transition underline underline-offset-2"
-              >
-                Reset all filters
-              </button>
-            )}
-          </div>
+              {/* ── Source + Kind filters ── */}
+              <div className="px-4 pt-3 pb-3 border-b border-[rgba(255,255,255,0.05)] flex-shrink-0">
+                <div className="text-[10px] uppercase tracking-widest text-zinc-700 mb-2 font-medium">Source</div>
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  <Chip label="Wikipedia" active={activeSources.includes("wikipedia")} onClick={() => onToggleSource("wikipedia")} />
+                  <Chip label="OSM" active={activeSources.includes("osm")} onClick={() => onToggleSource("osm")} />
+                  {cards.some((c) => c.source === "pbdb") && (
+                    <Chip label="Fossils" active={activeSources.includes("pbdb")} onClick={() => onToggleSource("pbdb")} />
+                  )}
+                </div>
 
-          {/* ── Actions ── */}
-          <div className="px-4 py-2.5 border-b border-[rgba(255,255,255,0.05)] flex gap-2">
-            <button
-              onClick={onSurpriseMe}
-              disabled={rankedCards.length === 0}
-              className="flex-1 px-3 py-2 rounded-xl border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.06)] text-zinc-300 text-xs font-medium transition disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              Surprise me
-            </button>
-          </div>
+                <div className="text-[10px] uppercase tracking-widest text-zinc-700 mb-2 font-medium">Type</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {KIND_CHIPS.map(({ kind, label }) => (
+                    <Chip key={kind} label={label} active={activeKinds.includes(kind)} onClick={() => onToggleKind(kind)} />
+                  ))}
+                </div>
 
-          {/* ── Feed ── */}
-          <Feed
-            cards={rankedCards}
-            newCardIds={newCardIds}
-            loading={loading}
-            error={error}
-            onCardSelect={onCardSelect}
-          />
+                {hasActiveFilters && (
+                  <button onClick={onResetFilters} className="mt-2.5 text-[11px] text-zinc-600 hover:text-zinc-400 transition underline underline-offset-2">
+                    Reset all filters
+                  </button>
+                )}
+              </div>
+
+              {/* ── Actions ── */}
+              <div className="px-4 py-2.5 border-b border-[rgba(255,255,255,0.05)] flex gap-2 flex-shrink-0">
+                <button
+                  onClick={onSurpriseMe}
+                  disabled={rankedCards.length === 0}
+                  className="flex-1 px-3 py-2 rounded-xl border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.06)] text-zinc-300 text-xs font-medium transition disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  Surprise me
+                </button>
+              </div>
+
+              {/* ── Feed ── */}
+              <Feed cards={rankedCards} newCardIds={newCardIds} loading={loading} error={error} onCardSelect={onCardSelect} />
+            </>
+          )}
         </div>
 
         {/* ── Map ── */}
@@ -181,7 +215,6 @@ export default function DesktopLayout(props: LayoutProps) {
             mapTheme={mapTheme}
           />
 
-          {/* ── Active overlays indicator ── */}
           <ActiveOverlays
             ma={deepTimeEnabled ? ma : 0}
             deepTimeEnabled={deepTimeEnabled}
@@ -190,12 +223,10 @@ export default function DesktopLayout(props: LayoutProps) {
             paleoEnabled={paleoEnabled}
           />
 
-          {/* ── Attribution footer ── */}
           <div className="absolute bottom-1 right-2 text-[8px] text-zinc-700 pointer-events-none z-10">
             OSM contributors &middot; PBDB CC BY &middot; GPlates / EarthByte
           </div>
 
-          {/* ── Drawer ── */}
           {selected && (
             <Drawer
               card={selected}
@@ -204,6 +235,13 @@ export default function DesktopLayout(props: LayoutProps) {
               paleoLat={paleoData?.paleoLat}
               paleoLng={paleoData?.paleoLng}
               nearbyFossilCount={nearbyFossilCount}
+              isSaved={isSaved}
+              onToggleSave={() =>
+                isSaved ? onUnsavePlace(selected.id) : onSavePlace(selected)
+              }
+              seaLevelOverride={seaLevelOverride}
+              paleoEnabled={paleoEnabled}
+              overlayBoost={overlayBoost}
             />
           )}
         </div>

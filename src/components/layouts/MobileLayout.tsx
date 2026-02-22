@@ -6,17 +6,19 @@ import BottomSheet from "@/components/sheets/BottomSheet";
 import FeedSheet from "@/components/sheets/FeedSheet";
 import DetailSheet from "@/components/sheets/DetailSheet";
 import TimeSheet from "@/components/sheets/TimeSheet";
+import FindsSheet from "@/components/sheets/FindsSheet";
 import MobileSearchBar from "@/components/mobile/MobileSearchBar";
 import FloatingControls from "@/components/mobile/FloatingControls";
 import { ActiveOverlays } from "@/components/ui/ActiveOverlays";
 import type { SnapPoint } from "@/hooks/useBottomSheet";
 import type { LayoutProps } from "./LayoutProps";
+import type { SavedPlace } from "@/domain/savedPlaces";
 
 // ---------------------------------------------------------------------------
 // MobileLayout — map-first layout with bottom sheets
 // ---------------------------------------------------------------------------
 
-type SheetMode = "feed" | "detail" | "time";
+type SheetMode = "feed" | "detail" | "time" | "finds";
 
 export default function MobileLayout(props: LayoutProps) {
   const {
@@ -37,13 +39,12 @@ export default function MobileLayout(props: LayoutProps) {
     center, onCenterChange,
     mapTheme, onMapThemeChange,
     nearbyFossilCount, onSurpriseMe,
+    savedPlaces, onSavePlace, onUnsavePlace, onRestoreFind,
   } = props;
 
-  // ── Sheet state ──
   const [sheetMode, setSheetMode] = useState<SheetMode>("feed");
   const [snapPoint, setSnapPoint] = useState<SnapPoint>("collapsed");
 
-  // ── When a card is selected, show detail sheet ──
   useEffect(() => {
     if (selected) {
       setSheetMode("detail");
@@ -51,31 +52,24 @@ export default function MobileLayout(props: LayoutProps) {
     }
   }, [selected]);
 
-  // ── Handle card selection from feed ──
   const handleCardSelect = useCallback(
-    (card: Parameters<typeof onCardSelect>[0]) => {
-      onCardSelect(card);
-      // The useEffect above will switch to detail mode
-    },
+    (card: Parameters<typeof onCardSelect>[0]) => onCardSelect(card),
     [onCardSelect]
   );
 
-  // ── Handle closing detail → return to feed ──
   const handleCloseDetail = useCallback(() => {
     onCloseSelected();
     setSheetMode("feed");
     setSnapPoint("collapsed");
   }, [onCloseSelected]);
 
-  // ── Handle snap changes (e.g. collapsing time sheet returns to feed) ──
   const handleSnapChange = useCallback(
     (sp: SnapPoint) => {
       setSnapPoint(sp);
-      if (sp === "collapsed" && sheetMode === "time") {
+      if (sp === "collapsed" && (sheetMode === "time" || sheetMode === "finds")) {
         setSheetMode("feed");
       }
       if (sp === "collapsed" && sheetMode === "detail") {
-        // Collapsing detail closes it
         onCloseSelected();
         setSheetMode("feed");
       }
@@ -83,31 +77,36 @@ export default function MobileLayout(props: LayoutProps) {
     [sheetMode, onCloseSelected]
   );
 
-  // ── FAB handlers ──
-  const openFeed = useCallback(() => {
-    setSheetMode("feed");
-    setSnapPoint("half");
-  }, []);
+  const openFeed = useCallback(() => { setSheetMode("feed"); setSnapPoint("half"); }, []);
+  const openTime = useCallback(() => { setSheetMode("time"); setSnapPoint("half"); }, []);
+  const openFinds = useCallback(() => { setSheetMode("finds"); setSnapPoint("half"); }, []);
 
-  const openTime = useCallback(() => {
-    setSheetMode("time");
-    setSnapPoint("half");
-  }, []);
+  const isSaved = selected ? savedPlaces.some((p) => p.id === selected.id) : false;
 
-  // ── Map interaction: disabled when sheet is expanded ──
+  const handleToggleSave = useCallback(() => {
+    if (!selected) return;
+    isSaved ? onUnsavePlace(selected.id) : onSavePlace(selected);
+  }, [selected, isSaved, onSavePlace, onUnsavePlace]);
+
+  const handleRestoreFind = useCallback(
+    (place: SavedPlace) => {
+      onRestoreFind(place);
+      setSheetMode("feed");
+      setSnapPoint("collapsed");
+    },
+    [onRestoreFind]
+  );
+
   const interactionEnabled = snapPoint === "collapsed";
 
-  // ── Sheet label ──
   const sheetLabel =
-    sheetMode === "feed"
-      ? "Discover"
-      : sheetMode === "detail"
-      ? "Details"
-      : "Time & Filters";
+    sheetMode === "feed" ? "Discover"
+    : sheetMode === "detail" ? "Details"
+    : sheetMode === "finds" ? "My Finds"
+    : "Time & Filters";
 
   return (
     <div className="fixed inset-0 overflow-hidden">
-      {/* ── Full-screen map ── */}
       <Map
         center={center}
         onCenterChange={onCenterChange}
@@ -127,7 +126,6 @@ export default function MobileLayout(props: LayoutProps) {
         mapTheme={mapTheme}
       />
 
-      {/* ── Active overlays indicator ── */}
       <ActiveOverlays
         ma={deepTimeEnabled ? ma : 0}
         deepTimeEnabled={deepTimeEnabled}
@@ -136,12 +134,10 @@ export default function MobileLayout(props: LayoutProps) {
         paleoEnabled={paleoEnabled}
       />
 
-      {/* ── Attribution ── */}
       <div className="absolute bottom-[100px] right-2 text-[8px] text-zinc-700 pointer-events-none z-10">
         OSM &middot; PBDB &middot; GPlates
       </div>
 
-      {/* ── Floating search bar ── */}
       <MobileSearchBar
         query={query}
         onQueryChange={onQueryChange}
@@ -150,22 +146,18 @@ export default function MobileLayout(props: LayoutProps) {
         loading={loading}
       />
 
-      {/* ── Floating controls ── */}
       <FloatingControls
         onOpenFeed={openFeed}
         onOpenTime={openTime}
-        onSurpriseMe={onSurpriseMe}
+        onOpenFinds={openFinds}
+        onToggleSave={handleToggleSave}
         sheetSnap={snapPoint}
         hasActiveFilters={hasActiveFilters}
-        hasCards={rankedCards.length > 0}
+        isCardSelected={!!selected}
+        isCardSaved={isSaved}
       />
 
-      {/* ── Bottom sheet ── */}
-      <BottomSheet
-        snapPoint={snapPoint}
-        onSnapChange={handleSnapChange}
-        label={sheetLabel}
-      >
+      <BottomSheet snapPoint={snapPoint} onSnapChange={handleSnapChange} label={sheetLabel}>
         {sheetMode === "feed" && (
           <FeedSheet
             cards={rankedCards}
@@ -186,6 +178,11 @@ export default function MobileLayout(props: LayoutProps) {
             paleoLat={paleoData?.paleoLat}
             paleoLng={paleoData?.paleoLng}
             nearbyFossilCount={nearbyFossilCount}
+            isSaved={isSaved}
+            onToggleSave={handleToggleSave}
+            seaLevelOverride={seaLevelOverride}
+            paleoEnabled={paleoEnabled}
+            overlayBoost={overlayBoost}
           />
         )}
 
@@ -215,6 +212,14 @@ export default function MobileLayout(props: LayoutProps) {
             hasPbdb={cards.some((c) => c.source === "pbdb")}
             mapTheme={mapTheme}
             onMapThemeChange={onMapThemeChange}
+          />
+        )}
+
+        {sheetMode === "finds" && (
+          <FindsSheet
+            saves={savedPlaces}
+            onSelect={handleRestoreFind}
+            onUnsave={onUnsavePlace}
           />
         )}
       </BottomSheet>

@@ -1,14 +1,14 @@
 "use client";
 
 import TimeControls from "@/components/TimeControls";
-import ContextPanel from "@/components/ContextPanel";
 import { Chip, KIND_CHIPS } from "@/components/ui/Chip";
-import type { Era, PlaceCard, PlaceKind, PlaceSource } from "@/domain/placeCard";
+import type { Era, PlaceKind, PlaceSource } from "@/domain/placeCard";
 import type { ReconstructionResult } from "@/app/api/reconstruct/route";
 import type { MapTheme } from "@/components/Map";
 
 // ---------------------------------------------------------------------------
-// TimeSheet — era/time controls + filters inside bottom sheet
+// TimeSheet — era/time controls + filters inside mobile bottom sheet.
+// ContextPanel is embedded inside TimeControls (narrative-first layout).
 // ---------------------------------------------------------------------------
 
 export default function TimeSheet({
@@ -64,7 +64,7 @@ export default function TimeSheet({
 }) {
   return (
     <div className="flex flex-col">
-      {/* ── Time controls ── */}
+      {/* Time controls — era description is embedded at position 4 (narrative-first) */}
       <TimeControls
         activeEra={activeEra}
         onEraChange={onEraChange}
@@ -82,28 +82,37 @@ export default function TimeSheet({
         onPaleoOpacityChange={onPaleoOpacityChange}
         mapTheme={mapTheme}
         onMapThemeChange={onMapThemeChange}
-      />
-
-      {/* ── Context panel ── */}
-      <ContextPanel
-        ma={ma}
-        activeEra={activeEra}
-        deepTimeEnabled={deepTimeEnabled}
         paleoData={paleoData}
       />
 
-      {/* ── Source + Kind filters ── */}
+      {/* Source + Kind filters */}
       <div className="px-4 pt-3 pb-4">
-        <div className="text-[10px] uppercase tracking-widest text-zinc-700 mb-2 font-medium">Source</div>
+        <div className="text-[10px] uppercase tracking-widest text-zinc-700 mb-2 font-medium">
+          Source
+        </div>
         <div className="flex flex-wrap gap-1.5 mb-3">
-          <Chip label="Wikipedia" active={activeSources.includes("wikipedia")} onClick={() => onToggleSource("wikipedia")} />
-          <Chip label="OSM" active={activeSources.includes("osm")} onClick={() => onToggleSource("osm")} />
+          <Chip
+            label="Wikipedia"
+            active={activeSources.includes("wikipedia")}
+            onClick={() => onToggleSource("wikipedia")}
+          />
+          <Chip
+            label="OSM"
+            active={activeSources.includes("osm")}
+            onClick={() => onToggleSource("osm")}
+          />
           {hasPbdb && (
-            <Chip label="Fossils" active={activeSources.includes("pbdb")} onClick={() => onToggleSource("pbdb")} />
+            <Chip
+              label="Fossils"
+              active={activeSources.includes("pbdb")}
+              onClick={() => onToggleSource("pbdb")}
+            />
           )}
         </div>
 
-        <div className="text-[10px] uppercase tracking-widest text-zinc-700 mb-2 font-medium">Type</div>
+        <div className="text-[10px] uppercase tracking-widest text-zinc-700 mb-2 font-medium">
+          Type
+        </div>
         <div className="flex flex-wrap gap-1.5">
           {KIND_CHIPS.map(({ kind, label }) => (
             <Chip

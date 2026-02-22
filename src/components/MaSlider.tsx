@@ -1,6 +1,7 @@
 "use client";
 
 import { MA_PRESETS, formatMa } from "@/domain/time";
+import { haptic } from "@/domain/haptics";
 
 // Ma slider uses a logarithmic scale so both 0.02 Ma and 500 Ma are usable.
 // Internal slider value: 0–100 linearly.
@@ -81,7 +82,7 @@ export default function MaSlider({
         {MA_PRESETS.map((p) => (
           <button
             key={p.label}
-            onClick={() => onMaChange(p.ma)}
+            onClick={() => { haptic(8); onMaChange(p.ma); }}
             title={p.description}
             className={[
               "px-2 py-1 rounded-md text-[10px] border transition-all duration-150",
