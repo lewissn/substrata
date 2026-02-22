@@ -15,6 +15,7 @@ export default function FloatingControls({
   onOpenFeed,
   onOpenTime,
   onOpenFinds,
+  onOpenArchive,
   onToggleSave,
   onActivateDropPin,
   sheetSnap,
@@ -28,6 +29,7 @@ export default function FloatingControls({
   onOpenFeed: () => void;
   onOpenTime: () => void;
   onOpenFinds: () => void;
+  onOpenArchive: () => void;
   onToggleSave: () => void;
   onActivateDropPin: () => void;
   sheetSnap: SnapPoint;
@@ -167,6 +169,18 @@ export default function FloatingControls({
           )}
         </button>
       </div>
+
+      {/* Archive — curated articles */}
+      <button
+        onClick={onOpenArchive}
+        className="w-11 h-11 rounded-full border border-[rgba(255,255,255,0.09)] bg-[rgba(9,9,11,0.95)] backdrop-blur-xl shadow-drawer flex items-center justify-center text-zinc-300 transition active:scale-95 min-h-[44px] min-w-[44px]"
+        aria-label="Open archive"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+        </svg>
+      </button>
 
       {/* Bookmark — save current card or open My Finds */}
       <button

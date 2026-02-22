@@ -111,13 +111,24 @@ export default function Drawer({
 
   return (
     <div className="absolute bottom-5 left-5 right-5 md:right-auto md:w-[520px] rounded-2xl border border-[rgba(255,255,255,0.09)] bg-[rgba(9,9,11,0.97)] backdrop-blur-xl shadow-drawer animate-drawer-in z-20">
-      {/* Image strip */}
-      {card.imageUrl && (
-        <div className="h-28 w-full rounded-t-2xl overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={card.imageUrl} alt="" className="w-full h-full object-cover opacity-80" />
-        </div>
-      )}
+      {/* Image strip — reserved space; contextual placeholder when no image */}
+      <div className="h-28 w-full rounded-t-2xl overflow-hidden flex-shrink-0">
+        {card.imageUrl ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={card.imageUrl} alt="" className="w-full h-full object-cover opacity-80 transition-opacity duration-300" />
+        ) : (
+          <div
+            className="w-full h-full"
+            style={
+              card.era === "geological" || card.era === "prehistoric"
+                ? { background: "linear-gradient(180deg, rgba(60,50,45,0.9) 0%, rgba(35,28,24,0.95) 100%)" }
+                : card.era === "ancient" || card.era === "medieval"
+                ? { background: "linear-gradient(180deg, rgba(42,56,36,0.9) 0%, rgba(28,36,24,0.95) 100%)" }
+                : { background: "linear-gradient(180deg, rgba(18,48,72,0.9) 0%, rgba(8,24,40,0.95) 100%)" }
+            }
+          />
+        )}
+      </div>
 
       <div className="p-4">
         <div className="flex items-start justify-between gap-3">

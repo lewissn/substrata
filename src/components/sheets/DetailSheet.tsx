@@ -158,15 +158,24 @@ export default function DetailSheet({
         </div>
       </div>
 
-      {/* ── Image strip ── */}
-      {card.imageUrl ? (
-        <div className="h-36 w-full overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={card.imageUrl} alt="" className="w-full h-full object-cover opacity-80" />
-        </div>
-      ) : (
-        <div className="h-20 w-full bg-gradient-to-b from-[rgba(255,255,255,0.03)] to-transparent" />
-      )}
+      {/* ── Image strip — reserved space; contextual placeholder when no image ── */}
+      <div className="h-36 w-full overflow-hidden flex-shrink-0">
+        {card.imageUrl ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={card.imageUrl} alt="" className="w-full h-full object-cover opacity-80 transition-opacity duration-300" />
+        ) : (
+          <div
+            className="w-full h-full"
+            style={
+              card.era === "geological" || card.era === "prehistoric"
+                ? { background: "linear-gradient(180deg, rgba(60,50,45,0.9) 0%, rgba(35,28,24,0.95) 100%)" }
+                : card.era === "ancient" || card.era === "medieval"
+                ? { background: "linear-gradient(180deg, rgba(42,56,36,0.9) 0%, rgba(28,36,24,0.95) 100%)" }
+                : { background: "linear-gradient(180deg, rgba(18,48,72,0.9) 0%, rgba(8,24,40,0.95) 100%)" }
+            }
+          />
+        )}
+      </div>
 
       {/* ── Content ── */}
       <div className="px-4 pt-3 pb-6 space-y-3">
