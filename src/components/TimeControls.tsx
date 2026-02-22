@@ -39,6 +39,7 @@ export default function TimeControls({
   mapTheme = "terrain",
   onMapThemeChange,
   paleoData,
+  showEraChips = true,
 }: {
   activeEra: Era | null;
   onEraChange: (era: Era | null) => void;
@@ -58,20 +59,24 @@ export default function TimeControls({
   onMapThemeChange?: (theme: MapTheme) => void;
   /** Paleo reconstruction data — passed through to ContextPanel for paleolatitude display */
   paleoData?: ReconstructionResult | null;
+  /** When false, era chip selector is hidden (filters live elsewhere, e.g. FeedSheet) */
+  showEraChips?: boolean;
 }) {
   return (
     <div className="border-b border-[rgba(255,255,255,0.05)]">
-      {/* 1. Era chips (when not in Deep Time) */}
-      <div className="px-4 pt-3 pb-2">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[10px] uppercase tracking-widest text-zinc-700 font-medium">
-            Era
-          </span>
+      {/* 1. Era chips (when not in Deep Time, and showEraChips is true) */}
+      {showEraChips && (
+        <div className="px-4 pt-3 pb-2">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] uppercase tracking-widest text-zinc-700 font-medium">
+              Era
+            </span>
+          </div>
+          {!deepTimeEnabled && (
+            <EraChips activeEra={activeEra} onEraChange={onEraChange} />
+          )}
         </div>
-        {!deepTimeEnabled && (
-          <EraChips activeEra={activeEra} onEraChange={onEraChange} />
-        )}
-      </div>
+      )}
 
       {/* 2. Deep Time toggle block */}
       <div className="px-4 pb-3">

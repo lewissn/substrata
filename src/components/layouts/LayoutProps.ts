@@ -65,6 +65,8 @@ export type LayoutProps = {
 
   // Actions
   onSurpriseMe: () => void;
+  /** Fly to a random curated place and trigger a search */
+  onWander: (coords: [number, number]) => void;
 
   // My Finds
   savedPlaces: SavedPlace[];

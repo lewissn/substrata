@@ -281,6 +281,39 @@ export default function Home() {
     setCenter([card.coords.lng, card.coords.lat]);
   };
 
+  const handleWander = useCallback(
+    (coords: [number, number]) => {
+      setCenter(coords);
+      setMapCenter(coords); // update search center immediately
+      const [lng, lat] = coords;
+      setLoading(true);
+      setError(null);
+      setSelected(null);
+      const searches: Promise<Response>[] = [
+        fetch(`/api/search/wiki?lat=${lat}&lng=${lng}&radius=9000&limit=30`),
+        fetch(`/api/search/osm?lat=${lat}&lng=${lng}&radius=9000&limit=160`),
+      ];
+      Promise.all(searches)
+        .then((responses) => Promise.all(responses.map((r) => r.json())))
+        .then((results) => {
+          const wikiCards: PlaceCard[] = results[0]?.cards ?? [];
+          const osmCards: PlaceCard[] = results[1]?.cards ?? [];
+          const merged = dedupe([...wikiCards, ...osmCards])
+            .sort((a, b) => scoreCard(b, effectiveEra, null) - scoreCard(a, effectiveEra, null))
+            .slice(0, 150);
+          const existingIds = new Set(cards.map((c) => c.id));
+          setNewCardIds(new Set(merged.filter((c) => !existingIds.has(c.id)).map((c) => c.id)));
+          setCards(merged);
+          if (merged.length === 0) setError("No results found in this area.");
+        })
+        .catch((e) => {
+          setError(`Search failed: ${e instanceof Error ? e.message : String(e)}`);
+        })
+        .finally(() => setLoading(false));
+    },
+    [cards, effectiveEra]
+  );
+
   const toggleSource = (s: PlaceSource) => {
     setActiveSources((prev) =>
       prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
@@ -409,6 +442,7 @@ export default function Home() {
     onMapThemeChange: setMapTheme,
     nearbyFossilCount,
     onSurpriseMe: handleSurpriseMe,
+    onWander: handleWander,
     savedPlaces,
     onSavePlace: handleSavePlace,
     onUnsavePlace: handleUnsavePlace,

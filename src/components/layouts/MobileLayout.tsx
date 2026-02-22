@@ -180,6 +180,16 @@ export default function MobileLayout(props: LayoutProps) {
             onSearchArea={onSearchArea}
             onSurpriseMe={onSurpriseMe}
             onOpenDiscover={openDiscover}
+            onWander={props.onWander}
+            activeEra={activeEra}
+            onEraChange={onEraChange}
+            activeSources={activeSources}
+            onToggleSource={onToggleSource}
+            activeKinds={activeKinds}
+            onToggleKind={onToggleKind}
+            hasActiveFilters={hasActiveFilters}
+            onResetFilters={onResetFilters}
+            hasPbdb={cards.some((c) => c.source === "pbdb")}
           />
         )}
 
@@ -216,13 +226,6 @@ export default function MobileLayout(props: LayoutProps) {
             paleoOpacity={paleoOpacity}
             onPaleoOpacityChange={onPaleoOpacityChange}
             paleoData={paleoData}
-            activeSources={activeSources}
-            onToggleSource={onToggleSource}
-            activeKinds={activeKinds}
-            onToggleKind={onToggleKind}
-            hasActiveFilters={hasActiveFilters}
-            onResetFilters={onResetFilters}
-            hasPbdb={cards.some((c) => c.source === "pbdb")}
             mapTheme={mapTheme}
             onMapThemeChange={onMapThemeChange}
           />
