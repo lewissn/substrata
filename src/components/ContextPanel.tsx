@@ -100,7 +100,7 @@ function PeriodContext({
 
   return (
     <div className="border-b border-[rgba(255,255,255,0.05)] animate-context-in">
-      {/* Image strip — lazy loaded, fades in */}
+      {/* Image strip — taller, more prominent, lazy loaded */}
       {imgSrc && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -109,8 +109,8 @@ function PeriodContext({
           loading="lazy"
           onLoad={() => setImgVisible(true)}
           onError={() => setImgSrc(null)}
-          className="w-full h-24 object-cover transition-opacity duration-700"
-          style={{ opacity: imgVisible ? 0.65 : 0 }}
+          className="w-full h-36 object-cover transition-opacity duration-700"
+          style={{ opacity: imgVisible ? 0.80 : 0 }}
         />
       )}
 
@@ -131,11 +131,11 @@ function PeriodContext({
         {/* Summary */}
         <p className="text-[12px] text-zinc-400 leading-relaxed">{period.summary}</p>
 
-        {/* Environmental stats */}
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-zinc-600">
-          <span>O₂ {period.oxygen}</span>
-          <span>CO₂ {period.co2}</span>
-          <span>Sea {period.seaLevel}</span>
+        {/* Environmental bullet highlights */}
+        <div className="space-y-1 pt-0.5">
+          <BulletRow label="O₂" value={period.oxygen} />
+          <BulletRow label="CO₂" value={period.co2} />
+          <BulletRow label="Sea" value={period.seaLevel} />
         </div>
 
         {/* Sea level bar */}
@@ -164,6 +164,19 @@ function PeriodContext({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Bullet row for environmental stats
+// ---------------------------------------------------------------------------
+
+function BulletRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-2 text-[10px]">
+      <span className="text-zinc-600 w-[28px] shrink-0 font-medium">{label}</span>
+      <span className="text-zinc-500">{value}</span>
     </div>
   );
 }

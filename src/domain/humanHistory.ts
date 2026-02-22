@@ -15,6 +15,8 @@ export type HistoricalPeriod = {
   era: Era;
   /** Example sites / keywords for the user */
   examples: string;
+  /** Wikipedia page title for thumbnail fetch */
+  wikiPage?: string;
 };
 
 export const HISTORICAL_PERIODS: HistoricalPeriod[] = [
@@ -26,6 +28,7 @@ export const HISTORICAL_PERIODS: HistoricalPeriod[] = [
       "The contemporary world — Industrial Revolution, World Wars, and the present day.",
     era: "modern",
     examples: "Historic railways, WWI & WWII sites, 20th-century landmarks",
+    wikiPage: "Industrial_Revolution",
   },
   {
     name: "Early Modern",
@@ -35,6 +38,7 @@ export const HISTORICAL_PERIODS: HistoricalPeriod[] = [
       "Age of Exploration and Enlightenment (c. 1400–1800 CE). European expansion, the Renaissance, and the birth of science.",
     era: "modern",
     examples: "Colonial forts, early modern city centres, Reformation churches",
+    wikiPage: "Age_of_Discovery",
   },
   {
     name: "Medieval",
@@ -44,6 +48,7 @@ export const HISTORICAL_PERIODS: HistoricalPeriod[] = [
       "The Middle Ages across Europe, the Islamic Golden Age, and Mongol empires (c. 500–1400 CE).",
     era: "medieval",
     examples: "Castles, cathedrals, Viking settlements, Silk Road oasis cities",
+    wikiPage: "Middle_Ages",
   },
   {
     name: "Late Antiquity",
@@ -53,6 +58,7 @@ export const HISTORICAL_PERIODS: HistoricalPeriod[] = [
       "The decline of Rome and rise of Byzantium, early Christianity and Islam (c. 300–500 CE).",
     era: "ancient",
     examples: "Roman ruins, early basilicas, late Roman villas",
+    wikiPage: "Late_antiquity",
   },
   {
     name: "Classical Antiquity",
@@ -62,6 +68,7 @@ export const HISTORICAL_PERIODS: HistoricalPeriod[] = [
       "Peak of Greek, Roman, Persian, and Han Chinese civilisations (c. 1000 BCE–300 CE).",
     era: "ancient",
     examples: "Roman forums, Greek temples, Persian palaces, Han tombs",
+    wikiPage: "Classical_antiquity",
   },
   {
     name: "Iron Age",
@@ -71,6 +78,7 @@ export const HISTORICAL_PERIODS: HistoricalPeriod[] = [
       "Iron-working cultures, early Celtic tribes, and Assyrian / Babylonian empires (c. 1200–1000 BCE).",
     era: "ancient",
     examples: "Hillforts, Phoenician ports, early Greek settlements",
+    wikiPage: "Iron_Age",
   },
   {
     name: "Bronze Age",
@@ -80,6 +88,7 @@ export const HISTORICAL_PERIODS: HistoricalPeriod[] = [
       "Egypt, Mesopotamia, Indus Valley, Minoan Crete, and Mycenae (c. 3500–1200 BCE).",
     era: "ancient",
     examples: "Pyramids, Stonehenge, Minoan palaces, Indus cities",
+    wikiPage: "Bronze_Age",
   },
   {
     name: "Neolithic",
@@ -89,6 +98,7 @@ export const HISTORICAL_PERIODS: HistoricalPeriod[] = [
       "First farming cultures, megalithic monuments, and proto-cities (c. 10,000–3500 BCE).",
     era: "prehistoric",
     examples: "Göbekli Tepe, Çatalhöyük, megalithic passage tombs",
+    wikiPage: "Neolithic",
   },
 ];
 
