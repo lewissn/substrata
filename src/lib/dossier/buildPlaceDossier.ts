@@ -43,57 +43,157 @@ export type BuildDossierInput = {
 };
 
 // ---------------------------------------------------------------------------
-// Builder
+// Builder — strict time branching (no shared generic fallback between branches)
 // ---------------------------------------------------------------------------
 
 export function buildPlaceDossier(input: BuildDossierInput): PlaceDossier {
   const { place, stop, paleoData, fossils, heroImageUrl, humanContext } = input;
 
-  // 1. Classification via existing narrative engine
+  const yearsAgo = stop.yearsAgo ?? (stop.ma != null && stop.ma > 0 ? undefined : 0);
+  const isModern = yearsAgo === 0;
+  const isRecentHuman = yearsAgo != null && yearsAgo > 0 && yearsAgo <= 10_000;
+  const isDeepTime = stop.ma != null && stop.ma > 0;
+
+  if (isModern) {
+    return buildModernDossier(input);
+  }
+  if (isRecentHuman) {
+    return buildRecentHumanDossier(input);
+  }
+  if (isDeepTime) {
+    return buildDeepTimeDossier(input);
+  }
+
+  // Fallback only for edge cases (e.g. ka20 with yearsAgo)
+  return buildDeepTimeDossier(input);
+}
+
+// ---------------------------------------------------------------------------
+// Modern (Now) — urban/latitude only; no paleo; hero = Wikipedia first
+// ---------------------------------------------------------------------------
+
+function buildModernDossier(input: BuildDossierInput): PlaceDossier {
+  const { place, stop, heroImageUrl } = input;
+  const narrative = generatePlaceNarrative({
+    lat: place.lat,
+    lng: place.lng,
+    stopKey: "now",
+    paleoLat: null,
+  });
+  const geology = getGeologyForStop(stop);
+  const hero = resolveHeroVisual(
+    "now",
+    narrative.latBand,
+    narrative.seaSetting,
+    heroImageUrl ?? undefined,
+  );
+  const dossierNarrative = buildNarrative(stop, narrative, null);
+  const life = buildLifeSection(stop, narrative, null);
+  const visuals = buildVisuals(stop, hero);
+  const sources = buildSources(narrative, null, null);
+  const periodName = derivePeriodName(stop);
+
+  return {
+    place: { id: place.id, title: place.title, lat: place.lat, lng: place.lng, source: place.source },
+    time: {
+      label: stop.label,
+      fullLabel: stop.fullLabel,
+      stopKey: stop.key,
+      ma: stop.ma,
+      yearsAgo: stop.yearsAgo,
+      periodName,
+    },
+    confidence: "low",
+    setting: {
+      paleolatBand: narrative.latBand,
+      landSea: narrative.seaSetting,
+      biome: narrative.biome.biomeLabel,
+      settingLabel: narrative.biome.settingLabel,
+    },
+    narrative: dossierNarrative,
+    life,
+    geology,
+    visuals,
+    sources,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Recent Human (2k–10k years) — tiered humanContext narrative
+// ---------------------------------------------------------------------------
+
+function buildRecentHumanDossier(input: BuildDossierInput): PlaceDossier {
+  const { place, stop, paleoData, humanContext } = input;
+  const narrative = generatePlaceNarrative({
+    lat: place.lat,
+    lng: place.lng,
+    stopKey: stop.key,
+    paleoLat: null,
+  });
+  const geology = getGeologyForStop(stop);
+  const hero: PlaceDossier["visuals"]["hero"] = humanContext?.topEntity?.imageUrl
+    ? { url: humanContext.topEntity.imageUrl, credit: "Wikidata / Commons" }
+    : resolveHeroVisual(stop.key, narrative.latBand, narrative.seaSetting, undefined);
+  const dossierNarrative = buildNarrativeRecentHuman(stop, narrative, humanContext);
+  const life = buildLifeSection(stop, narrative, null);
+  const visuals = buildVisuals(stop, hero);
+  const sources = buildSources(narrative, null, null);
+  const periodName = derivePeriodName(stop);
+
+  return {
+    place: { id: place.id, title: place.title, lat: place.lat, lng: place.lng, source: place.source },
+    time: {
+      label: stop.label,
+      fullLabel: stop.fullLabel,
+      stopKey: stop.key,
+      ma: stop.ma,
+      yearsAgo: stop.yearsAgo,
+      periodName,
+    },
+    confidence: humanContext?.tier === 1 ? "high" : humanContext?.tier === 2 ? "medium" : "low",
+    setting: {
+      paleolatBand: narrative.latBand,
+      landSea: narrative.seaSetting,
+      biome: narrative.biome.biomeLabel,
+      settingLabel: narrative.biome.settingLabel,
+    },
+    narrative: dossierNarrative,
+    humanContext: humanContext ?? undefined,
+    life,
+    geology,
+    visuals,
+    sources,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Deep Time — location-sensitive (paleolat, land/sea, biome, PBDB)
+// ---------------------------------------------------------------------------
+
+function buildDeepTimeDossier(input: BuildDossierInput): PlaceDossier {
+  const { place, stop, paleoData, fossils, heroImageUrl } = input;
   const narrative = generatePlaceNarrative({
     lat: place.lat,
     lng: place.lng,
     stopKey: stop.key,
     paleoLat: paleoData?.paleoLat ?? null,
   });
-
-  // 2. Confidence
   const confidence = deriveConfidence(narrative, paleoData);
-
-  // 3. Geological context
   const geology = getGeologyForStop(stop);
-
-  // 4. Hero visual
   const hero = resolveHeroVisual(
     stop.key,
     narrative.latBand,
     narrative.seaSetting,
-    heroImageUrl,
+    heroImageUrl ?? undefined,
   );
-
-  // 5. Narrative with deeper sections
   const dossierNarrative = buildNarrative(stop, narrative, paleoData);
-
-  // 6. Life section
   const life = buildLifeSection(stop, narrative, fossils ?? null);
-
-  // 7. Visuals
   const visuals = buildVisuals(stop, hero);
-
-  // 8. Sources
   const sources = buildSources(narrative, paleoData, fossils ?? null);
-
-  // 9. Period name
   const periodName = derivePeriodName(stop);
 
   return {
-    place: {
-      id: place.id,
-      title: place.title,
-      lat: place.lat,
-      lng: place.lng,
-      source: place.source,
-    },
+    place: { id: place.id, title: place.title, lat: place.lat, lng: place.lng, source: place.source },
     time: {
       label: stop.label,
       fullLabel: stop.fullLabel,
@@ -110,7 +210,6 @@ export function buildPlaceDossier(input: BuildDossierInput): PlaceDossier {
       settingLabel: narrative.biome.settingLabel,
     },
     narrative: dossierNarrative,
-    humanContext: humanContext ?? undefined,
     life,
     geology,
     visuals,
@@ -143,6 +242,37 @@ function derivePeriodName(stop: TimeStopDef): string | undefined {
     return period?.name;
   }
   return undefined;
+}
+
+function buildNarrativeRecentHuman(
+  stop: TimeStopDef,
+  narrative: PlaceNarrative,
+  humanContext: HumanContext | null | undefined,
+): DossierNarrative {
+  if (humanContext && (humanContext.tier === 1 || humanContext.tier === 2) && humanContext.topEntity) {
+    const name = humanContext.topEntity.name;
+    const summary =
+      humanContext.summary ||
+      `${name} was a notable settlement or historic place in this area at this time.`;
+    return {
+      summary,
+      bullets: stop.bullets,
+      deeper: undefined,
+    };
+  }
+  if (humanContext?.headline && humanContext?.summary) {
+    return {
+      summary: humanContext.summary,
+      bullets: stop.bullets,
+      deeper: undefined,
+    };
+  }
+  const summary = narrative.biome.narrative ?? stop.narrative;
+  return {
+    summary,
+    bullets: narrative.biome.bullets ?? stop.bullets,
+    deeper: undefined,
+  };
 }
 
 function buildNarrative(

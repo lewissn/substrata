@@ -10,6 +10,12 @@ import { buildPlaceDossier, wikiPageForFallback } from "@/lib/dossier/buildPlace
 import type { PlaceDossier, DossierLife, DossierGeology, DossierSource } from "@/lib/dossier/types";
 import { isImg } from "@/lib/dossier/types";
 import type { HumanContext } from "@/lib/dossier/humanContext";
+import {
+  TRY_THIS_PRESETS,
+  isTryThisDismissed,
+  setTryThisDismissed,
+  type TryThisPreset,
+} from "@/data/tryThisPresets";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -53,6 +59,9 @@ type Props = {
   onClearPlace: () => void;
   onSetTimeStop: (stop: TimeStopDef) => void;
   onFlyToPlace: () => void;
+  onTryThisPreset?: (preset: TryThisPreset) => void;
+  tryThisAppliedStopKey?: string | null;
+  onClearTryThisApplied?: () => void;
 };
 
 // ---------------------------------------------------------------------------
@@ -67,8 +76,12 @@ export default function ThisPlacePanel({
   onClearPlace,
   onSetTimeStop,
   onFlyToPlace,
+  onTryThisPreset,
+  tryThisAppliedStopKey,
+  onClearTryThisApplied,
 }: Props) {
   const [selectedKey, setSelectedKey] = useState("now");
+  const [tryThisDismissed, setTryThisDismissedLocal] = useState(isTryThisDismissed);
   const [imgVisible, setImgVisible] = useState(false);
   const [fossils, setFossils] = useState<FossilEnrichment | null>(null);
   const [wikiThumbUrl, setWikiThumbUrl] = useState<string | null>(null);
@@ -139,16 +152,27 @@ export default function ThisPlacePanel({
     });
   }, [activePlace, selectedStop, paleoData, fossils, wikiThumbUrl, humanContext]);
 
-  // Fetch Wikipedia fallback image only if visual catalog has no match
+  // For "Now": hero priority = place Wikipedia page first (then catalog in resolveHeroVisual)
   useEffect(() => {
-    if (!dossier) return;
+    if (!activePlace || selectedStop.key !== "now") return;
+    const url = activePlace.wikipedia;
+    if (!url?.includes("/wiki/")) return;
+    const pageTitle = decodeURIComponent(url.split("/wiki/")[1]?.replace(/_/g, " ") ?? "").trim();
+    if (!pageTitle) return;
+    fetchWikiThumb(pageTitle).then((src) => {
+      if (src) setWikiThumbUrl(src);
+    });
+  }, [activePlace?.id, activePlace?.wikipedia, selectedStop.key]);
+
+  // Fetch Wikipedia fallback image when visual catalog has no match (non-now stops)
+  useEffect(() => {
+    if (!dossier || dossier.time.stopKey === "now") return;
     const needsFallback = wikiPageForFallback(
       dossier.time.stopKey,
       dossier.setting.paleolatBand,
       dossier.setting.landSea,
     );
     if (!needsFallback) return;
-    // Use narrative biome wikiPage or stop wikiPage as fallback
     const wikiPage = selectedStop.wikiPage;
     if (wikiPage) {
       fetchWikiThumb(wikiPage).then((src) => {
@@ -161,6 +185,15 @@ export default function ThisPlacePanel({
     setSelectedKey(stop.key);
     onSetTimeStop(stop);
   };
+
+  // Sync selectedKey when parent applied a Try This preset (once)
+  const prevAppliedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!tryThisAppliedStopKey || !activePlace || tryThisAppliedStopKey === prevAppliedRef.current) return;
+    prevAppliedRef.current = tryThisAppliedStopKey;
+    setSelectedKey(tryThisAppliedStopKey);
+    onClearTryThisApplied?.();
+  }, [tryThisAppliedStopKey, activePlace, onClearTryThisApplied]);
 
   // ---------------------------------------------------------------------------
   // Empty state
@@ -203,9 +236,24 @@ export default function ThisPlacePanel({
 
   const heroIsImg = isImg(dossier.visuals.hero);
 
+  const showTryThis = !tryThisDismissed && onTryThisPreset;
+
+  const handleDismissTryThis = () => {
+    setTryThisDismissedLocal(true);
+    setTryThisDismissed();
+  };
+
   return (
     <div className="flex flex-col">
       <Wordmark />
+
+      {/* ── Try This (first visit) ── */}
+      {showTryThis && (
+        <TryThisCard
+          onSelectPreset={onTryThisPreset!}
+          onDismiss={handleDismissTryThis}
+        />
+      )}
 
       {/* ── Place header ── */}
       <div className="px-4 pt-3 pb-2 border-b border-[rgba(255,255,255,0.05)]">
@@ -255,7 +303,7 @@ export default function ThisPlacePanel({
           loading="lazy"
           onLoad={() => setImgVisible(true)}
           onError={() => setImgVisible(false)}
-          className="w-full h-36 object-cover transition-opacity duration-700"
+          className="w-full h-36 object-cover transition-opacity duration-200"
           style={{ opacity: imgVisible ? 0.78 : 0 }}
         />
       ) : (
@@ -302,6 +350,54 @@ export default function ThisPlacePanel({
           HUMAN_LAYER_STOPS.has(selectedKey) && humanContext === null
         }
       />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Try This — first-use suggestion card
+// ---------------------------------------------------------------------------
+
+function TryThisCard({
+  onSelectPreset,
+  onDismiss,
+}: {
+  onSelectPreset: (preset: TryThisPreset) => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <div className="mx-4 mt-2 mb-1 p-3 rounded-xl border border-[rgba(44,111,116,0.25)] bg-[rgba(31,90,92,0.12)]">
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-[#89CDD1]">
+          Try This
+        </span>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="p-1 rounded-md text-zinc-500 hover:text-zinc-300 transition min-w-[28px] min-h-[28px] flex items-center justify-center"
+          aria-label="Dismiss"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <p className="text-[11px] text-zinc-500 mb-2.5 leading-snug">
+        Tap a place and time to see a narrative and image.
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {TRY_THIS_PRESETS.map((preset) => (
+          <button
+            key={preset.id}
+            type="button"
+            onClick={() => onSelectPreset(preset)}
+            className="px-2.5 py-1.5 rounded-lg border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.08)] text-[11px] text-zinc-300 hover:text-zinc-100 transition min-h-[44px]"
+          >
+            {preset.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

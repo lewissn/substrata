@@ -17,9 +17,11 @@ import type { ReconstructionResult } from "@/app/api/reconstruct/route";
 import {
   activePlaceFromCard,
   customPin,
+  TIME_STOPS,
   type ActivePlace,
   type TimeStopDef,
 } from "@/domain/thisPlace";
+import type { TryThisPreset } from "@/data/tryThisPresets";
 
 // ---------------------------------------------------------------------------
 // HomeApp — client component; owns all app state and delegates to layouts.
@@ -76,6 +78,9 @@ export default function HomeApp() {
 
   // --- My Finds ---
   const { saves: savedPlaces, save: savePlace, unsave: unsavePlace } = useSavedPlaces();
+
+  // --- Try This (first-use presets) ---
+  const [tryThisAppliedStopKey, setTryThisAppliedStopKey] = useState<string | null>(null);
 
   // --- Responsive layout ---
   const isMobile = useMediaQuery("(max-width: 767px)");
@@ -457,6 +462,25 @@ export default function HomeApp() {
     []
   );
 
+  const handleTryThisPreset = useCallback((preset: TryThisPreset) => {
+    setMapCenter([preset.lng, preset.lat]);
+    setCenter([preset.lng, preset.lat]);
+    setActivePlace({
+      id: `preset-${preset.id}`,
+      title: preset.label,
+      lat: preset.lat,
+      lng: preset.lng,
+      source: "custom",
+    });
+    const stop = preset.ma != null
+      ? TIME_STOPS.find((s) => s.ma != null && Math.abs((s.ma ?? 0) - preset.ma!) < 1)
+      : TIME_STOPS.find((s) => s.yearsAgo === preset.yearsAgo);
+    if (stop) {
+      handleSetTimeStop(stop);
+      setTryThisAppliedStopKey(stop.key);
+    }
+  }, [handleSetTimeStop]);
+
   // --- Layout props (shared between desktop and mobile) ---
   const layoutProps = {
     query,
@@ -523,6 +547,9 @@ export default function HomeApp() {
     onClearPlace: handleClearPlace,
     onSetTimeStop: handleSetTimeStop,
     onFlyToPlace: handleFlyToPlace,
+    onTryThisPreset: handleTryThisPreset,
+    tryThisAppliedStopKey,
+    onClearTryThisApplied: () => setTryThisAppliedStopKey(null),
   };
 
   // Wrap in z-10 so the full-screen app covers the z-0 SEO content below
