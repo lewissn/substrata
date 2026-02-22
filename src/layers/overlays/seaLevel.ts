@@ -4,22 +4,22 @@ import { seaLevelAtMa } from "@/domain/lgm";
 
 // ---------------------------------------------------------------------------
 // Sea Level Overlay
-// Shows exposed continental shelf at negative sea levels.
-// Uses the coastline GeoJSON source (managed externally by Map),
-// but controls its own fill/line visual treatment.
+// Shows exposed continental shelf when sea level is significantly negative.
 //
-// The actual coastline data source is managed by the paleoCoastline overlay.
-// This overlay manages a dedicated "sea-level shelf" visual layer that
-// represents the approximate exposed shelf based on the sea level value.
+// Uses a dedicated source (sea-level-shelf-src) populated with precomputed
+// shelf polygon data for major areas exposed at -120m sea level. This source
+// is initialised in Map.tsx and is always available, unlike the paleo
+// coastline source which only has data at Ma >= 1.
+//
+// Opacity scales with the magnitude of the sea level drop:
+//   -20m  → subtle (fill ~0.20, border ~0.45)
+//   -60m  → moderate (fill ~0.33, border ~0.60)
+//   -120m → prominent (fill ~0.45, border ~0.75)
 // ---------------------------------------------------------------------------
 
-// For the sea level overlay, we reuse the existing coastline source
-// but apply our own visual treatment. The coastline GeoJSON is managed
-// externally — this module only controls the visual presentation.
-
-const SOURCE = "paleo-coastline-src"; // shared with paleoCoastline overlay
-const FILL = "paleo-coastline-fill";
-const BORDER = "paleo-coastline-border";
+const SOURCE = "sea-level-shelf-src"; // own source, always populated
+const FILL   = "sea-level-shelf-fill";
+const BORDER = "sea-level-shelf-border";
 
 /** Resolve effective sea level from params */
 export function effectiveSeaLevel(params: OverlayParams): number {
@@ -27,22 +27,21 @@ export function effectiveSeaLevel(params: OverlayParams): number {
   return seaLevelAtMa(params.ma);
 }
 
-/**
- * Coastline opacity: stronger when sea level is more negative.
- * The more the sea drops, the more dramatically we show the exposed shelf.
- */
-function coastlineOpacity(seaLevel: number, boost: number): number {
-  if (seaLevel >= 0) return 0;
-  // -120m → full opacity, -20m → subtle
-  const intensity = Math.min(1, Math.abs(seaLevel) / 120);
-  const base = 0.10 + intensity * 0.20; // range: 0.10 to 0.30
+/** Fill opacity — scales with sea level depth (0 when >= -5m) */
+function fillOpacity(seaLevel: number, boost: number): number {
+  if (seaLevel >= -5) return 0;
+  const depth = Math.min(120, Math.abs(seaLevel));
+  const intensity = depth / 120; // 0 at -5m, 1.0 at -120m
+  const base = 0.15 + intensity * 0.30; // 0.15 → 0.45
   return Math.min(1, base * boost);
 }
 
-function coastlineBorderOpacity(seaLevel: number, boost: number): number {
-  if (seaLevel >= 0) return 0;
-  const intensity = Math.min(1, Math.abs(seaLevel) / 120);
-  const base = 0.25 + intensity * 0.25;
+/** Border opacity — stronger than fill for crisp edge */
+function borderOpacity(seaLevel: number, boost: number): number {
+  if (seaLevel >= -5) return 0;
+  const depth = Math.min(120, Math.abs(seaLevel));
+  const intensity = depth / 120;
+  const base = 0.40 + intensity * 0.35; // 0.40 → 0.75
   return Math.min(1, base * boost);
 }
 
@@ -50,42 +49,50 @@ export const seaLevelOverlay: OverlayModule = {
   id: "sea-level",
 
   add(map, params) {
-    // Source is managed by paleoCoastline overlay / Map.tsx
-    // We only manage layer paint properties here
-    const sl = effectiveSeaLevel(params);
-    const fillO = coastlineOpacity(sl, params.boost);
-    const borderO = coastlineBorderOpacity(sl, params.boost);
+    if (!map.getSource(SOURCE)) return; // source not ready yet
 
-    if (!map.getLayer(FILL) && map.getSource(SOURCE)) {
+    const sl = effectiveSeaLevel(params);
+    const fillO = fillOpacity(sl, params.boost);
+    const borderO = borderOpacity(sl, params.boost);
+
+    if (!map.getLayer(FILL)) {
       map.addLayer({
         id: FILL,
         type: "fill",
         source: SOURCE,
         paint: {
-          "fill-color": "rgba(120,160,100,0.15)",
+          "fill-color": "rgba(185, 165, 115, 1.0)", // warm tan for exposed land
           "fill-opacity": fillO,
         },
       });
     }
 
-    if (!map.getLayer(BORDER) && map.getSource(SOURCE)) {
+    if (!map.getLayer(BORDER)) {
       map.addLayer({
         id: BORDER,
         type: "line",
         source: SOURCE,
         paint: {
-          "line-color": "rgba(120,160,100,0.45)",
-          "line-width": 1.5,
+          "line-color": "rgba(200, 180, 130, 1.0)",
+          "line-width": 2,
           "line-opacity": borderO,
         },
       });
+    }
+
+    if (process.env.NODE_ENV === "development") {
+      const sl = effectiveSeaLevel(params);
+      console.debug(
+        `[SeaLevel] add — sl=${sl}m, fillO=${fillO.toFixed(2)}, borderO=${borderO.toFixed(2)}, ` +
+        `fillLayer=${!!map.getLayer(FILL)}, borderLayer=${!!map.getLayer(BORDER)}`
+      );
     }
   },
 
   update(map, params) {
     const sl = effectiveSeaLevel(params);
-    const fillO = coastlineOpacity(sl, params.boost);
-    const borderO = coastlineBorderOpacity(sl, params.boost);
+    const fillO = fillOpacity(sl, params.boost);
+    const borderO = borderOpacity(sl, params.boost);
 
     if (map.getLayer(FILL)) {
       map.setPaintProperty(FILL, "fill-opacity", fillO);
@@ -93,12 +100,18 @@ export const seaLevelOverlay: OverlayModule = {
     if (map.getLayer(BORDER)) {
       map.setPaintProperty(BORDER, "line-opacity", borderO);
     }
+
+    if (process.env.NODE_ENV === "development") {
+      console.debug(
+        `[SeaLevel] update — sl=${sl}m, fillO=${fillO.toFixed(2)}, borderO=${borderO.toFixed(2)}`
+      );
+    }
   },
 
   remove(map) {
     if (map.getLayer(BORDER)) map.removeLayer(BORDER);
     if (map.getLayer(FILL)) map.removeLayer(FILL);
-    // Do NOT remove the source — it's shared
+    // Do NOT remove the source — it is owned by Map.tsx
   },
 
   isAdded(map) {

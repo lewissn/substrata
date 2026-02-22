@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import type { PlaceCard } from "@/domain/placeCard";
 import type { Era } from "@/domain/placeCard";
-import { lgmIceGeoJSON, lgmExposedLandGeoJSON } from "@/domain/lgm";
+import { lgmIceGeoJSON, lgmExposedLandGeoJSON, seaLevelExposedShelfGeoJSON } from "@/domain/lgm";
 import { addAllOverlays, updateAllOverlays } from "@/layers/overlays/OverlayController";
 import type { OverlayParams } from "@/layers/overlays/OverlayController";
 
@@ -53,6 +53,7 @@ const LAYER_SELECTED = "selected-point";
 const SOURCE_COASTLINE = "paleo-coastline-src";
 const SOURCE_ICE = "lgm-ice-src";
 const SOURCE_EXPOSED = "lgm-exposed-src";
+const SOURCE_SEA_SHELF = "sea-level-shelf-src";
 const LAYER_ICE_FILL = "lgm-ice-fill";
 const LAYER_EXPOSED_FILL = "lgm-exposed-fill";
 
@@ -300,6 +301,11 @@ export default function Map({
     if (!map.getSource(SOURCE_EXPOSED)) {
       map.addSource(SOURCE_EXPOSED, { type: "geojson", data: lgmExposedLandGeoJSON() as any });
     }
+
+    // Sea level shelf source (static precomputed shelf polygons for -120m exposure)
+    if (!map.getSource(SOURCE_SEA_SHELF)) {
+      map.addSource(SOURCE_SEA_SHELF, { type: "geojson", data: seaLevelExposedShelfGeoJSON() as any });
+    }
   }
 
   // ── Initialize marker sources + layers ──
@@ -506,6 +512,11 @@ export default function Map({
 
     currentStyleRef.current = initialStyle;
     mapRef.current = map;
+
+    // Expose to console in dev for debugging
+    if (process.env.NODE_ENV === "development") {
+      (window as any).map = map;
+    }
 
     map.on("moveend", () => {
       const c = map.getCenter();

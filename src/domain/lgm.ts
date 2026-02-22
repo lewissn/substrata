@@ -239,3 +239,86 @@ export function formatSeaLevel(metres: number): string {
   if (metres > 0) return `+${metres}m above present`;
   return `${metres}m below present`;
 }
+
+// ---------------------------------------------------------------------------
+// Sea Level Exposed Shelf — approximate areas visible at -120m sea level
+// Includes all LGM exposed land bridges plus additional shelf regions.
+// Used by the sea level overlay to show exposed continental shelf.
+// ---------------------------------------------------------------------------
+
+const SEA_LEVEL_SHELF_AREAS: ExposedLand[] = [
+  // LGM exposed land bridges (already defined above)
+  BERINGIA,
+  DOGGERLAND,
+  SUNDALAND,
+  SAHUL,
+
+  // Additional shallow shelf areas
+  {
+    name: "Persian Gulf",
+    description: "Drained at -120m, exposing the Gulf floor",
+    coordinates: [[
+      [48.0, 24.0], [50.0, 23.5], [53.0, 23.5], [55.0, 24.0],
+      [57.0, 25.0], [57.5, 26.5], [57.0, 28.0], [55.0, 29.0],
+      [52.0, 29.5], [50.0, 29.0], [48.5, 28.0], [48.0, 26.5],
+      [48.0, 24.0],
+    ]],
+  },
+  {
+    name: "Yellow Sea & East China Sea",
+    description: "Large shallow shelf exposed at -120m",
+    coordinates: [[
+      [119.0, 29.0], [120.0, 28.0], [122.0, 27.0], [124.0, 26.0],
+      [126.0, 26.5], [128.0, 28.0], [129.0, 31.0], [128.0, 34.0],
+      [126.0, 36.0], [124.0, 38.0], [122.0, 38.5], [120.0, 37.0],
+      [118.0, 35.0], [118.5, 32.0], [119.0, 29.0],
+    ]],
+  },
+  {
+    name: "Arafura Shelf",
+    description: "Shallow sea between Australia and Timor, exposed at -120m",
+    coordinates: [[
+      [128.0, -6.0], [131.0, -5.0], [134.0, -5.5], [136.0, -6.5],
+      [138.0, -8.0], [136.0, -10.0], [133.0, -11.0], [130.0, -11.0],
+      [128.0, -9.5], [127.0, -8.0], [128.0, -6.0],
+    ]],
+  },
+  {
+    name: "Celtic Sea Shelf",
+    description: "Extended shelf west of Britain exposed at -120m",
+    coordinates: [[
+      [-10.0, 48.0], [-8.0, 47.5], [-5.0, 47.0], [-3.0, 48.0],
+      [-5.0, 49.5], [-8.0, 50.5], [-11.0, 51.0], [-12.0, 50.0],
+      [-11.0, 48.5], [-10.0, 48.0],
+    ]],
+  },
+  {
+    name: "Grand Banks",
+    description: "Shallow banks east of Newfoundland exposed at -120m",
+    coordinates: [[
+      [-53.0, 43.0], [-50.0, 42.5], [-47.0, 43.0], [-46.0, 44.5],
+      [-47.0, 46.0], [-50.0, 47.0], [-53.0, 46.5], [-54.5, 45.0],
+      [-53.0, 43.0],
+    ]],
+  },
+];
+
+/** GeoJSON of continental shelf areas exposed at deep negative sea levels.
+ *  Used by the sea level overlay to visualise exposed shelf. Data represents
+ *  approximate -120m exposure; opacity scales with actual sea level value. */
+export function seaLevelExposedShelfGeoJSON(): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: SEA_LEVEL_SHELF_AREAS.map((area) => ({
+      type: "Feature" as const,
+      properties: {
+        name: area.name,
+        description: area.description,
+      },
+      geometry: {
+        type: "Polygon" as const,
+        coordinates: area.coordinates,
+      },
+    })),
+  };
+}
