@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { TIME_STOPS, formatCoords } from "@/domain/thisPlace";
 import type { ActivePlace, TimeStopDef } from "@/domain/thisPlace";
 import type { ReconstructionResult } from "@/app/api/reconstruct/route";
-import { generatePlaceNarrative } from "@/domain/placeNarrative";
-import type { PlaceNarrative } from "@/domain/placeNarrative";
 import { fetchFossilEnrichment } from "@/domain/fossilEnrichment";
 import type { FossilEnrichment } from "@/domain/fossilEnrichment";
+import { buildPlaceDossier, wikiPageForFallback } from "@/lib/dossier/buildPlaceDossier";
+import type { PlaceDossier, DossierLife, DossierGeology, DossierSource } from "@/lib/dossier/types";
+import { isImg } from "@/lib/dossier/types";
 
 // ---------------------------------------------------------------------------
 // Wikipedia thumbnail cache (shared session-level cache)
@@ -32,12 +33,6 @@ async function fetchWikiThumb(wikiPage: string): Promise<string | null> {
     return null;
   }
 }
-
-// ---------------------------------------------------------------------------
-// Onboarding hint — shown once per session
-// ---------------------------------------------------------------------------
-
-const HINT_KEY = "substrata_place_hinted";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -67,55 +62,28 @@ export default function ThisPlacePanel({
   onFlyToPlace,
 }: Props) {
   const [selectedKey, setSelectedKey] = useState("now");
-  const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [imgVisible, setImgVisible] = useState(false);
-  const [hintDismissed, setHintDismissed] = useState(true);
-  const [narrative, setNarrative] = useState<PlaceNarrative | null>(null);
   const [fossils, setFossils] = useState<FossilEnrichment | null>(null);
-  const prevNarrativeKey = useRef("");
-
-  // Check onboarding hint (client-only)
-  useEffect(() => {
-    setHintDismissed(!!localStorage.getItem(HINT_KEY));
-  }, []);
-
-  const dismissHint = () => {
-    setHintDismissed(true);
-    localStorage.setItem(HINT_KEY, "1");
-  };
+  const [wikiThumbUrl, setWikiThumbUrl] = useState<string | null>(null);
+  const prevFetchKey = useRef("");
 
   const selectedStop = TIME_STOPS.find((s) => s.key === selectedKey) ?? TIME_STOPS[0];
 
-  // Generate narrative + fetch image when stop or place changes
+  // Fetch async enrichments when stop or place changes
   useEffect(() => {
     if (!activePlace) {
-      setNarrative(null);
       setFossils(null);
+      setWikiThumbUrl(null);
       return;
     }
 
-    const nKey = `${activePlace.lat.toFixed(4)}:${activePlace.lng.toFixed(4)}:${selectedStop.key}:${paleoData?.paleoLat?.toFixed(1) ?? "m"}`;
-    if (nKey === prevNarrativeKey.current) return;
-    prevNarrativeKey.current = nKey;
+    const fetchKey = `${activePlace.lat.toFixed(4)}:${activePlace.lng.toFixed(4)}:${selectedStop.key}:${paleoData?.paleoLat?.toFixed(1) ?? "m"}`;
+    if (fetchKey === prevFetchKey.current) return;
+    prevFetchKey.current = fetchKey;
 
-    // Generate narrative (sync, memoized)
-    const n = generatePlaceNarrative({
-      lat: activePlace.lat,
-      lng: activePlace.lng,
-      stopKey: selectedStop.key,
-      paleoLat: paleoData?.paleoLat ?? null,
-    });
-    setNarrative(n);
-
-    // Fetch biome-aware image (from narrative wikiPage, not static stop wikiPage)
-    setImgSrc(null);
+    // Reset image loading
     setImgVisible(false);
-    const wikiPage = n.biome.wikiPage;
-    if (wikiPage) {
-      fetchWikiThumb(wikiPage).then((src) => {
-        if (src) setImgSrc(src);
-      });
-    }
+    setWikiThumbUrl(null);
 
     // Fetch fossils for deep time stops
     if (selectedStop.kind === "deep" && selectedStop.ma) {
@@ -128,6 +96,36 @@ export default function ThisPlacePanel({
     }
   }, [activePlace, selectedStop, paleoData]);
 
+  // Build dossier (synchronous, recalculates when inputs change)
+  const dossier: PlaceDossier | null = useMemo(() => {
+    if (!activePlace) return null;
+    return buildPlaceDossier({
+      place: activePlace,
+      stop: selectedStop,
+      paleoData,
+      fossils,
+      heroImageUrl: wikiThumbUrl,
+    });
+  }, [activePlace, selectedStop, paleoData, fossils, wikiThumbUrl]);
+
+  // Fetch Wikipedia fallback image only if visual catalog has no match
+  useEffect(() => {
+    if (!dossier) return;
+    const needsFallback = wikiPageForFallback(
+      dossier.time.stopKey,
+      dossier.setting.paleolatBand,
+      dossier.setting.landSea,
+    );
+    if (!needsFallback) return;
+    // Use narrative biome wikiPage or stop wikiPage as fallback
+    const wikiPage = selectedStop.wikiPage;
+    if (wikiPage) {
+      fetchWikiThumb(wikiPage).then((src) => {
+        if (src) setWikiThumbUrl(src);
+      });
+    }
+  }, [dossier?.time.stopKey, dossier?.setting.paleolatBand, dossier?.setting.landSea, selectedStop.wikiPage]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSelectStop = (stop: TimeStopDef) => {
     setSelectedKey(stop.key);
     onSetTimeStop(stop);
@@ -137,39 +135,23 @@ export default function ThisPlacePanel({
   // Empty state
   // ---------------------------------------------------------------------------
 
-  if (!activePlace) {
+  if (!activePlace || !dossier) {
     return (
       <div className="flex flex-col">
-        {/* ── Wordmark ── */}
         <Wordmark />
-
         <div className="flex flex-col items-center px-5 py-5 text-center">
-          {/* Icon */}
           <div className="w-14 h-14 rounded-2xl bg-[rgba(31,90,92,0.12)] border border-[rgba(44,111,116,0.20)] flex items-center justify-center mb-4">
-            <svg
-              width="28"
-              height="28"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="rgba(44,111,116,0.7)"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(44,111,116,0.7)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
               <circle cx="12" cy="9" r="2.5" />
             </svg>
           </div>
-
           <h2 className="text-[14px] font-semibold text-zinc-200 mb-1">This Place Through Time</h2>
           <p className="text-[12px] text-zinc-500 leading-relaxed mb-5 max-w-[240px]">
-            Drop a pin anywhere on the map — or select a place — to explore what was here across deep
-            time and human history.
+            Drop a pin anywhere on the map — or select a place — to explore what was here across deep time and human history.
           </p>
-
-          {/* Primary CTA */}
           <button
-            onClick={() => { dismissHint(); onActivateDropPin(); }}
+            onClick={onActivateDropPin}
             className={[
               "px-5 py-2.5 rounded-xl text-[12px] font-semibold border transition-all duration-150",
               dropPinMode
@@ -177,43 +159,21 @@ export default function ThisPlacePanel({
                 : "bg-[rgba(31,90,92,0.18)] border-[rgba(44,111,116,0.40)] text-[#89CDD1] hover:bg-[rgba(31,90,92,0.28)]",
             ].join(" ")}
           >
-            {dropPinMode ? "Tap map to place pin…" : "Drop Pin"}
+            {dropPinMode ? "Tap map to place pin\u2026" : "Drop Pin"}
           </button>
-
-          {/* Onboarding hint */}
-          {!hintDismissed && (
-            <div className="mt-4 px-3 py-2 rounded-lg border border-[rgba(44,111,116,0.20)] bg-[rgba(9,9,11,0.60)] flex items-start gap-2">
-              <span className="text-[10px] text-zinc-600 leading-relaxed text-left">
-                Tip: Long-press anywhere on the map to drop a pin instantly.
-              </span>
-              <button
-                onClick={dismissHint}
-                className="text-zinc-700 hover:text-zinc-500 shrink-0 mt-0.5"
-                aria-label="Dismiss hint"
-              >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-          )}
         </div>
       </div>
     );
   }
 
   // ---------------------------------------------------------------------------
-  // Active place — full view
+  // Active place — full dossier view
   // ---------------------------------------------------------------------------
 
-  // Determine image wikiPage: use biome-aware page from narrative, or static stop page as fallback
-  const hasImage = !!imgSrc;
-  const hasWikiPage = !!(narrative?.biome.wikiPage ?? selectedStop.wikiPage);
+  const heroIsImg = isImg(dossier.visuals.hero);
 
   return (
     <div className="flex flex-col">
-      {/* ── Wordmark ── */}
       <Wordmark />
 
       {/* ── Place header ── */}
@@ -221,10 +181,10 @@ export default function ThisPlacePanel({
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <div className="text-[13px] font-semibold text-zinc-100 leading-snug truncate">
-              {activePlace.title}
+              {dossier.place.title}
             </div>
             <div className="text-[10px] text-zinc-600 mt-0.5 font-mono">
-              {formatCoords(activePlace.lat, activePlace.lng)}
+              {formatCoords(dossier.place.lat, dossier.place.lng)}
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
@@ -238,7 +198,7 @@ export default function ThisPlacePanel({
                   : "border-[rgba(255,255,255,0.07)] text-zinc-500 hover:text-zinc-300 bg-[rgba(255,255,255,0.03)]",
               ].join(" ")}
             >
-              {dropPinMode ? "Tap map…" : "New pin"}
+              {dropPinMode ? "Tap map\u2026" : "New pin"}
             </button>
             <button
               onClick={onClearPlace}
@@ -255,22 +215,26 @@ export default function ThisPlacePanel({
         </div>
       </div>
 
-      {/* ── Period image ── */}
-      {hasImage && (
+      {/* ── Hero visual ── */}
+      {heroIsImg ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={imgSrc!}
-          alt={narrative?.biome.biomeLabel ?? selectedStop.fullLabel}
+          src={(dossier.visuals.hero as { url: string }).url}
+          alt={dossier.setting.biome}
           loading="lazy"
           onLoad={() => setImgVisible(true)}
-          onError={() => setImgSrc(null)}
+          onError={() => setImgVisible(false)}
           className="w-full h-36 object-cover transition-opacity duration-700"
           style={{ opacity: imgVisible ? 0.78 : 0 }}
         />
-      )}
-      {!hasImage && hasWikiPage && (
-        <div className="w-full h-36 bg-[rgba(255,255,255,0.02)] flex items-center justify-center">
-          <div className="text-[9px] text-zinc-700 uppercase tracking-widest">Loading image…</div>
+      ) : (
+        <div
+          className="w-full h-28 flex items-end justify-start px-4 pb-2"
+          style={{ background: (dossier.visuals.hero as { gradient: string }).gradient }}
+        >
+          <span className="text-[10px] uppercase tracking-widest text-white/30 font-medium">
+            {dossier.setting.biome}
+          </span>
         </div>
       )}
 
@@ -298,20 +262,14 @@ export default function ThisPlacePanel({
         </div>
       </div>
 
-      {/* ── Story card ── */}
-      <StoryCard
-        stop={selectedStop}
-        narrative={narrative}
-        fossils={fossils}
-        paleoData={paleoData}
-        onFlyToPlace={onFlyToPlace}
-      />
+      {/* ── Dossier card ── */}
+      <DossierCard dossier={dossier} onFlyToPlace={onFlyToPlace} fossilsLoading={fossils?.loading ?? false} />
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Wordmark — always sits at the top of the panel, very low profile
+// Wordmark
 // ---------------------------------------------------------------------------
 
 function Wordmark() {
@@ -320,7 +278,7 @@ function Wordmark() {
       <span className="text-[9px] font-semibold uppercase tracking-[0.24em] text-zinc-700">
         Substrata
       </span>
-      <span className="text-zinc-800 text-[9px]">·</span>
+      <span className="text-zinc-800 text-[9px]">&middot;</span>
       <span className="text-[9px] tracking-wide text-zinc-700">
         Explore layers of time
       </span>
@@ -329,26 +287,22 @@ function Wordmark() {
 }
 
 // ---------------------------------------------------------------------------
-// Biome badges — compact pills showing classification result
+// Setting badges
 // ---------------------------------------------------------------------------
 
-function BiomeBadges({ narrative }: { narrative: PlaceNarrative }) {
+function SettingBadges({ dossier }: { dossier: PlaceDossier }) {
   return (
     <div className="flex flex-wrap gap-1.5">
-      {/* Biome label */}
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[rgba(140,158,96,0.12)] border border-[rgba(140,158,96,0.25)] text-[9px] font-medium text-[#B0C478]">
-        {narrative.biome.biomeLabel}
+        {dossier.setting.biome}
       </span>
-      {/* Setting */}
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[rgba(44,111,116,0.10)] border border-[rgba(44,111,116,0.22)] text-[9px] font-medium text-[#89CDD1]">
-        {narrative.biome.settingLabel}
+        {dossier.setting.settingLabel}
       </span>
-      {/* Latitude band */}
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] text-[9px] font-medium text-zinc-500">
-        {narrative.latBandLabel}
+        {dossier.setting.paleolatBand.charAt(0).toUpperCase() + dossier.setting.paleolatBand.slice(1)}
       </span>
-      {/* Confidence */}
-      {narrative.usedPaleoLat && (
+      {dossier.confidence === "high" && (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.06)] text-[9px] text-zinc-600">
           GPlates-verified
         </span>
@@ -358,49 +312,194 @@ function BiomeBadges({ narrative }: { narrative: PlaceNarrative }) {
 }
 
 // ---------------------------------------------------------------------------
-// Fossil section — shows top taxa from PBDB
+// Fossil section
 // ---------------------------------------------------------------------------
 
-function FossilSection({ fossils }: { fossils: FossilEnrichment }) {
-  if (fossils.loading) {
+function FossilSection({ life, loading }: { life: DossierLife; loading: boolean }) {
+  if (loading) {
     return (
       <div className="text-[10px] text-zinc-600 animate-pulse">
-        Searching for nearby fossils…
+        Searching for nearby fossils\u2026
       </div>
     );
   }
 
-  if (fossils.taxa.length === 0) return null;
+  const hasTaxa = life.taxa.length > 0;
+  const hasInferred = (life.flora && life.flora.length > 0) || (life.fauna && life.fauna.length > 0);
+
+  if (!hasTaxa && !hasInferred) return null;
 
   return (
-    <div className="space-y-1.5">
-      <div className="text-[9px] uppercase tracking-widest text-zinc-700 font-medium">
-        Nearby fossils ({fossils.totalOccurrences} occurrences)
-      </div>
-      <div className="space-y-1">
-        {fossils.taxa.map((t) => (
-          <div
-            key={t.name}
-            className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)]"
-          >
-            <div className="flex-1 min-w-0">
-              <div className="text-[11px] font-medium text-zinc-300 italic truncate">
-                {t.name}
+    <div className="space-y-2">
+      {/* PBDB fossil occurrences */}
+      {hasTaxa && (
+        <div className="space-y-1.5">
+          <div className="text-[9px] uppercase tracking-widest text-zinc-700 font-medium">
+            {life.headline ?? `Nearby fossils (${life.totalOccurrences} occurrences)`}
+          </div>
+          <div className="space-y-1">
+            {life.taxa.map((t) => (
+              <div
+                key={t.name}
+                className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)]"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] font-medium text-zinc-300 italic truncate">
+                    {t.name}
+                  </div>
+                  <div className="text-[9px] text-zinc-600">
+                    {[
+                      t.interval,
+                      t.phylum,
+                      t.distanceKm != null && t.distanceKm > 0 ? `~${t.distanceKm} km away` : null,
+                    ].filter(Boolean).join(" \u00B7 ")}
+                  </div>
+                </div>
+                {t.count > 1 && (
+                  <span className="text-[9px] text-zinc-600 font-mono shrink-0">
+                    \u00D7{t.count}
+                  </span>
+                )}
               </div>
-              <div className="text-[9px] text-zinc-600">
-                {[
-                  t.interval,
-                  t.phylum,
-                  t.distanceKm > 0 ? `~${t.distanceKm} km away` : null,
-                ].filter(Boolean).join(" · ")}
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Inferred flora/fauna */}
+      {hasInferred && (
+        <div className="space-y-1">
+          {life.fauna && life.fauna.length > 0 && (
+            <div>
+              <div className="text-[9px] uppercase tracking-widest text-zinc-700 font-medium mb-1">
+                Representative fauna
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {life.fauna.map((f) => (
+                  <span key={f} className="px-2 py-0.5 rounded-md bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.06)] text-[10px] text-zinc-500">
+                    {f}
+                  </span>
+                ))}
               </div>
             </div>
-            {t.count > 1 && (
-              <span className="text-[9px] text-zinc-600 font-mono shrink-0">
-                ×{t.count}
-              </span>
+          )}
+          {life.flora && life.flora.length > 0 && (
+            <div>
+              <div className="text-[9px] uppercase tracking-widest text-zinc-700 font-medium mb-1">
+                Representative flora
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {life.flora.map((f) => (
+                  <span key={f} className="px-2 py-0.5 rounded-md bg-[rgba(140,158,96,0.08)] border border-[rgba(140,158,96,0.15)] text-[10px] text-[#9AB06A]">
+                    {f}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Geology section
+// ---------------------------------------------------------------------------
+
+function GeologySection({ geology }: { geology: DossierGeology }) {
+  if (!geology.lithology && geology.notes.length === 0) return null;
+
+  return (
+    <div className="space-y-1">
+      <div className="text-[9px] uppercase tracking-widest text-zinc-700 font-medium">
+        Geology &mdash; {geology.periodName}
+      </div>
+      {geology.lithology && (
+        <div className="text-[11px] text-zinc-500 leading-snug">
+          <span className="text-zinc-600 font-medium">Typical rocks:</span>{" "}
+          {geology.lithology}
+        </div>
+      )}
+      {geology.notes.length > 0 && (
+        <ul className="space-y-0.5">
+          {geology.notes.slice(0, 3).map((n, i) => (
+            <li key={i} className="flex items-start gap-2 text-[10px] text-zinc-600">
+              <span className="text-zinc-700 mt-0.5 shrink-0">&middot;</span>
+              <span className="leading-snug">{n}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Expandable section (for "More detail")
+// ---------------------------------------------------------------------------
+
+function ExpandableSection({ title, text }: { title: string; text: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="border-l-2 border-[rgba(44,111,116,0.20)] pl-2.5">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1.5 text-[10px] font-medium text-zinc-500 hover:text-zinc-300 transition w-full text-left"
+      >
+        <svg
+          width="8"
+          height="8"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          className={`shrink-0 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+        >
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+        {title}
+      </button>
+      {open && (
+        <p className="text-[11px] text-zinc-500 leading-relaxed mt-1.5 pl-3.5">
+          {text}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Sources list
+// ---------------------------------------------------------------------------
+
+function SourcesList({ sources }: { sources: DossierSource[] }) {
+  if (sources.length === 0) return null;
+
+  return (
+    <div className="space-y-1">
+      <div className="text-[9px] uppercase tracking-widest text-zinc-700 font-medium">
+        Sources
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {sources.map((s, i) => (
+          <span key={i} className="text-[9px] text-zinc-600">
+            {s.url ? (
+              <a
+                href={s.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline decoration-zinc-700 hover:text-zinc-400 transition"
+              >
+                {s.label}
+              </a>
+            ) : (
+              s.label
             )}
-          </div>
+            {i < sources.length - 1 && <span className="text-zinc-800 mx-1">&middot;</span>}
+          </span>
         ))}
       </div>
     </div>
@@ -408,28 +507,19 @@ function FossilSection({ fossils }: { fossils: FossilEnrichment }) {
 }
 
 // ---------------------------------------------------------------------------
-// Story card — now powered by the narrative engine
+// Dossier card — the main content area powered by the dossier engine
 // ---------------------------------------------------------------------------
 
-function StoryCard({
-  stop,
-  narrative,
-  fossils,
-  paleoData,
+function DossierCard({
+  dossier,
   onFlyToPlace,
+  fossilsLoading,
 }: {
-  stop: TimeStopDef;
-  narrative: PlaceNarrative | null;
-  fossils: FossilEnrichment | null;
-  paleoData: ReconstructionResult | null;
+  dossier: PlaceDossier;
   onFlyToPlace: () => void;
+  fossilsLoading: boolean;
 }) {
-  // Use narrative-engine content when available, fall back to static stop content
-  const displayNarrative = narrative?.biome.narrative ?? stop.narrative;
-  const displayBullets = narrative?.biome.bullets ?? stop.bullets;
-
-  // Location note for deep time when we have paleo data
-  const locationNote = buildLocationNote(stop, paleoData);
+  const { time, narrative, life, geology, sources } = dossier;
 
   return (
     <div className="px-4 py-3 space-y-2.5">
@@ -438,41 +528,54 @@ function StoryCard({
         <div
           className={[
             "text-[11px] font-semibold uppercase tracking-wide",
-            stop.kind === "deep" ? "text-[#8C9E60]" : "text-[#89CDD1]",
+            time.ma != null ? "text-[#8C9E60]" : "text-[#89CDD1]",
           ].join(" ")}
         >
-          {stop.kind === "deep" ? "Deep Time" : "Human History"}
+          {time.ma != null ? "Deep Time" : "Human History"}
+          {time.periodName && (
+            <span className="normal-case tracking-normal font-normal text-zinc-600 ml-1.5">
+              {time.periodName}
+            </span>
+          )}
         </div>
         <div className="text-[14px] font-semibold text-zinc-100 leading-snug mt-0.5">
-          {stop.fullLabel}
+          {time.fullLabel}
         </div>
       </div>
 
-      {/* Biome badges */}
-      {narrative && <BiomeBadges narrative={narrative} />}
+      {/* Setting badges */}
+      <SettingBadges dossier={dossier} />
 
-      {/* Narrative */}
-      <p className="text-[12px] text-zinc-400 leading-relaxed">{displayNarrative}</p>
-
-      {/* Location-specific note from paleoData */}
-      {locationNote && (
-        <div className="text-[11px] text-zinc-500 italic leading-relaxed border-l-2 border-[rgba(44,111,116,0.30)] pl-2.5">
-          {locationNote}
-        </div>
-      )}
+      {/* Narrative summary */}
+      <p className="text-[12px] text-zinc-400 leading-relaxed">{narrative.summary}</p>
 
       {/* Bullet facts */}
       <ul className="space-y-1">
-        {displayBullets.map((b, i) => (
+        {narrative.bullets.map((b, i) => (
           <li key={i} className="flex items-start gap-2 text-[11px] text-zinc-500">
-            <span className="text-zinc-700 mt-0.5 shrink-0">·</span>
+            <span className="text-zinc-700 mt-0.5 shrink-0">&middot;</span>
             <span className="leading-snug">{b}</span>
           </li>
         ))}
       </ul>
 
-      {/* Fossils */}
-      {fossils && <FossilSection fossils={fossils} />}
+      {/* Expandable deeper sections */}
+      {narrative.deeper && narrative.deeper.sections.length > 0 && (
+        <div className="space-y-1.5 pt-0.5">
+          {narrative.deeper.sections.map((s, i) => (
+            <ExpandableSection key={i} title={s.title} text={s.text} />
+          ))}
+        </div>
+      )}
+
+      {/* Local evidence: fossils + flora/fauna */}
+      <FossilSection life={life} loading={fossilsLoading} />
+
+      {/* Geology */}
+      <GeologySection geology={geology} />
+
+      {/* Sources */}
+      <SourcesList sources={sources} />
 
       {/* Actions */}
       <div className="pt-1 flex items-center gap-2">
@@ -482,7 +585,7 @@ function StoryCard({
         >
           View on map
         </button>
-        {stop.kind === "deep" && (
+        {dossier.visuals.mapOverlays.paleogeography && (
           <span className="text-[9px] text-zinc-700 italic">
             Paleogeography enabled automatically
           </span>
@@ -490,35 +593,4 @@ function StoryCard({
       </div>
     </div>
   );
-}
-
-// ---------------------------------------------------------------------------
-// Build location-specific note from paleoData (deep time only)
-// ---------------------------------------------------------------------------
-
-function buildLocationNote(
-  stop: TimeStopDef,
-  paleoData: ReconstructionResult | null
-): string | null {
-  if (stop.kind !== "deep" || !paleoData) return null;
-  const { paleoLat, climateBand } = paleoData;
-  if (paleoLat == null) return null;
-
-  const latAbs = Math.abs(paleoLat);
-  const latDir = paleoLat >= 0 ? "N" : "S";
-  const latDesc =
-    latAbs < 10 ? "near the equator"
-    : latAbs < 30 ? "in the tropics"
-    : latAbs < 50 ? "in the mid-latitudes"
-    : latAbs < 65 ? "in the sub-polar region"
-    : "near the pole";
-
-  const parts: string[] = [
-    `At this time, this location was approximately ${latAbs.toFixed(1)}° ${latDir} — ${latDesc}.`,
-  ];
-  if (climateBand) {
-    parts.push(`Climate zone: ${climateBand}.`);
-  }
-
-  return parts.join(" ");
 }
