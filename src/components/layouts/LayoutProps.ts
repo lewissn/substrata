@@ -71,4 +71,7 @@ export type LayoutProps = {
   onSavePlace: (card: PlaceCard) => void;
   onUnsavePlace: (id: string) => void;
   onRestoreFind: (place: SavedPlace) => void;
+
+  // Discover / Archive
+  onViewOnMap: (params: { lat: number; lng: number; ma?: number }) => void;
 };

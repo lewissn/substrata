@@ -7,6 +7,7 @@ import FeedSheet from "@/components/sheets/FeedSheet";
 import DetailSheet from "@/components/sheets/DetailSheet";
 import TimeSheet from "@/components/sheets/TimeSheet";
 import FindsSheet from "@/components/sheets/FindsSheet";
+import DiscoverSheet from "@/components/discover/DiscoverSheet";
 import MobileSearchBar from "@/components/mobile/MobileSearchBar";
 import FloatingControls from "@/components/mobile/FloatingControls";
 import { ActiveOverlays } from "@/components/ui/ActiveOverlays";
@@ -18,7 +19,7 @@ import type { SavedPlace } from "@/domain/savedPlaces";
 // MobileLayout — map-first layout with bottom sheets
 // ---------------------------------------------------------------------------
 
-type SheetMode = "feed" | "detail" | "time" | "finds";
+type SheetMode = "feed" | "detail" | "time" | "finds" | "discover";
 
 export default function MobileLayout(props: LayoutProps) {
   const {
@@ -39,7 +40,7 @@ export default function MobileLayout(props: LayoutProps) {
     center, onCenterChange,
     mapTheme, onMapThemeChange,
     nearbyFossilCount, onSurpriseMe,
-    savedPlaces, onSavePlace, onUnsavePlace, onRestoreFind,
+    savedPlaces, onSavePlace, onUnsavePlace, onRestoreFind, onViewOnMap,
   } = props;
 
   const [sheetMode, setSheetMode] = useState<SheetMode>("feed");
@@ -66,7 +67,7 @@ export default function MobileLayout(props: LayoutProps) {
   const handleSnapChange = useCallback(
     (sp: SnapPoint) => {
       setSnapPoint(sp);
-      if (sp === "collapsed" && (sheetMode === "time" || sheetMode === "finds")) {
+      if (sp === "collapsed" && (sheetMode === "time" || sheetMode === "finds" || sheetMode === "discover")) {
         setSheetMode("feed");
       }
       if (sp === "collapsed" && sheetMode === "detail") {
@@ -80,6 +81,7 @@ export default function MobileLayout(props: LayoutProps) {
   const openFeed = useCallback(() => { setSheetMode("feed"); setSnapPoint("half"); }, []);
   const openTime = useCallback(() => { setSheetMode("time"); setSnapPoint("half"); }, []);
   const openFinds = useCallback(() => { setSheetMode("finds"); setSnapPoint("half"); }, []);
+  const openDiscover = useCallback(() => { setSheetMode("discover"); setSnapPoint("half"); }, []);
 
   const isSaved = selected ? savedPlaces.some((p) => p.id === selected.id) : false;
 
@@ -100,10 +102,20 @@ export default function MobileLayout(props: LayoutProps) {
   const interactionEnabled = snapPoint === "collapsed";
 
   const sheetLabel =
-    sheetMode === "feed" ? "Discover"
+    sheetMode === "feed" ? "Nearby"
     : sheetMode === "detail" ? "Details"
     : sheetMode === "finds" ? "My Finds"
+    : sheetMode === "discover" ? "Archive"
     : "Time & Filters";
+
+  const handleViewOnMap = useCallback(
+    (params: { lat: number; lng: number; ma?: number }) => {
+      onViewOnMap(params);
+      setSheetMode("feed");
+      setSnapPoint("collapsed");
+    },
+    [onViewOnMap]
+  );
 
   return (
     <div className="fixed inset-0 overflow-hidden">
@@ -167,6 +179,7 @@ export default function MobileLayout(props: LayoutProps) {
             onCardSelect={handleCardSelect}
             onSearchArea={onSearchArea}
             onSurpriseMe={onSurpriseMe}
+            onOpenDiscover={openDiscover}
           />
         )}
 
@@ -221,6 +234,10 @@ export default function MobileLayout(props: LayoutProps) {
             onSelect={handleRestoreFind}
             onUnsave={onUnsavePlace}
           />
+        )}
+
+        {sheetMode === "discover" && (
+          <DiscoverSheet onViewOnMap={handleViewOnMap} />
         )}
       </BottomSheet>
     </div>

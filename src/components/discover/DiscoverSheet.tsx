@@ -1,0 +1,291 @@
+"use client";
+
+import { useState } from "react";
+import { DISCOVER_ENTRIES, type DiscoverEntry } from "@/data/discover";
+
+// ---------------------------------------------------------------------------
+// DiscoverSheet — curated geological and historical archive
+// Self-contained list ↔ detail navigation.
+// ---------------------------------------------------------------------------
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatEntryTime(entry: DiscoverEntry): string {
+  if (entry.ma !== undefined) {
+    const ma = entry.ma;
+    if (ma >= 1000) return `${(ma / 1000).toFixed(1)} Ga`;
+    if (ma >= 1) return `${ma % 1 === 0 ? ma : ma.toFixed(1)} Ma`;
+    if (ma >= 0.001) return `${Math.round(ma * 1000)} ka`;
+    return `${Math.round(ma * 1_000_000)} yr`;
+  }
+  if (entry.year !== undefined) {
+    if (entry.year > 0) return entry.year.toString();
+    return `${Math.abs(entry.year)} BCE`;
+  }
+  return "";
+}
+
+function firstSentence(text: string): string {
+  const idx = text.indexOf(".");
+  return idx !== -1 ? text.slice(0, idx + 1) : text;
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function EntryImage({
+  src,
+  alt,
+  className = "",
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+}) {
+  const [loaded, setLoaded] = useState(false);
+  const [errored, setErrored] = useState(false);
+
+  return (
+    <div className={`relative bg-[rgba(255,255,255,0.03)] overflow-hidden ${className}`}>
+      {!errored && (
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          onLoad={() => setLoaded(true)}
+          onError={() => setErrored(true)}
+          className={[
+            "w-full h-full object-cover transition-opacity duration-700",
+            loaded ? "opacity-100" : "opacity-0",
+          ].join(" ")}
+        />
+      )}
+      {errored && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-[10px] text-zinc-700">Image unavailable</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── List view ─────────────────────────────────────────────────────────────────
+
+function DiscoverList({ onSelect }: { onSelect: (entry: DiscoverEntry) => void }) {
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="px-4 pb-3 border-b border-[rgba(255,255,255,0.05)] flex-shrink-0">
+        <h2 className="text-[14px] font-semibold tracking-tight text-zinc-100">Archive</h2>
+        <span className="text-[10px] text-zinc-600">
+          {DISCOVER_ENTRIES.length} curated entries &middot; geological &amp; historical
+        </span>
+      </div>
+
+      {/* Entry list */}
+      <div className="flex-1 overflow-y-auto sheet-container divide-y divide-[rgba(255,255,255,0.04)]">
+        {DISCOVER_ENTRIES.map((entry) => (
+          <button
+            key={entry.id}
+            onClick={() => onSelect(entry)}
+            className="w-full text-left px-4 py-3.5 flex items-start gap-3 hover:bg-[rgba(255,255,255,0.025)] transition group"
+          >
+            {/* Thumbnail */}
+            <EntryImage
+              src={entry.image}
+              alt={entry.title}
+              className="w-14 h-14 flex-shrink-0 rounded-lg"
+            />
+
+            {/* Text */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <span className="text-[13px] font-medium text-zinc-200 leading-snug">
+                  {entry.title}
+                </span>
+                {formatEntryTime(entry) && (
+                  <span className="text-[10px] text-zinc-600 tabular-nums flex-shrink-0">
+                    {formatEntryTime(entry)}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-zinc-600 mt-0.5 leading-snug line-clamp-2">
+                {entry.subtitle ?? firstSentence(entry.description)}
+              </p>
+            </div>
+
+            {/* Arrow */}
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="flex-shrink-0 text-zinc-700 group-hover:text-zinc-500 transition mt-1"
+            >
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+        ))}
+
+        {/* Footer credit */}
+        <div className="px-4 py-4 text-[10px] text-zinc-800 leading-relaxed">
+          All images public domain or Creative Commons via Wikimedia Commons.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Detail view ───────────────────────────────────────────────────────────────
+
+function DiscoverDetail({
+  entry,
+  onBack,
+  onViewOnMap,
+}: {
+  entry: DiscoverEntry;
+  onBack: () => void;
+  onViewOnMap?: (params: { lat: number; lng: number; ma?: number }) => void;
+}) {
+  const paragraphs = entry.description.split("\n\n").filter(Boolean);
+  const timeLabel = formatEntryTime(entry);
+  const canNavigate = entry.lat !== undefined && entry.lng !== undefined && onViewOnMap;
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Back */}
+      <div className="px-4 pb-2 flex items-center flex-shrink-0">
+        <button
+          onClick={onBack}
+          className="text-[12px] text-zinc-400 hover:text-zinc-200 transition min-h-[36px] flex items-center gap-1"
+        >
+          <span aria-hidden="true">&larr;</span> Archive
+        </button>
+      </div>
+
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto sheet-container">
+        {/* Image */}
+        <EntryImage
+          src={entry.image}
+          alt={entry.title}
+          className="w-full aspect-video"
+        />
+
+        {/* Credit */}
+        {entry.imageCredit && (
+          <p className="px-4 pt-1 pb-0 text-[9px] text-zinc-700 italic">
+            {entry.imageCredit}
+          </p>
+        )}
+
+        {/* Content */}
+        <div className="px-4 pt-4 pb-8 space-y-4">
+          {/* Time + era */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {timeLabel && (
+              <span className="text-[10px] font-medium tabular-nums px-2 py-0.5 rounded-md bg-[rgba(255,255,255,0.05)] text-zinc-400 border border-[rgba(255,255,255,0.07)]">
+                {timeLabel}
+              </span>
+            )}
+            <span className="text-[10px] text-zinc-600">{entry.era}</span>
+          </div>
+
+          {/* Title */}
+          <div>
+            <h2 className="text-[20px] font-semibold text-zinc-50 leading-tight tracking-tight">
+              {entry.title}
+            </h2>
+            {entry.subtitle && (
+              <p className="text-[13px] text-zinc-500 mt-1 italic">{entry.subtitle}</p>
+            )}
+          </div>
+
+          {/* Teal accent rule */}
+          <div className="w-8 h-[1.5px] bg-[rgba(44,111,116,0.50)] rounded-full" />
+
+          {/* Description paragraphs */}
+          <div className="space-y-3.5">
+            {paragraphs.map((para, i) => (
+              <p key={i} className="text-[13px] text-zinc-300 leading-relaxed">
+                {para}
+              </p>
+            ))}
+          </div>
+
+          {/* View on Map */}
+          {canNavigate && (
+            <div className="pt-2">
+              <button
+                onClick={() =>
+                  onViewOnMap({
+                    lat: entry.lat!,
+                    lng: entry.lng!,
+                    ma: entry.ma,
+                  })
+                }
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[rgba(44,111,116,0.50)] bg-[rgba(31,90,92,0.20)] hover:bg-[rgba(31,90,92,0.35)] text-[#89CDD1] text-[12px] font-medium transition"
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none" />
+                </svg>
+                View on Map
+                {entry.ma && entry.ma > 0 && (
+                  <span className="text-[10px] text-[#5BA8AD] font-normal">
+                    — enables Deep Time
+                  </span>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Root component ────────────────────────────────────────────────────────────
+
+export default function DiscoverSheet({
+  onViewOnMap,
+}: {
+  onViewOnMap?: (params: { lat: number; lng: number; ma?: number }) => void;
+}) {
+  const [view, setView] = useState<"list" | "detail">("list");
+  const [selected, setSelected] = useState<DiscoverEntry | null>(null);
+
+  const handleSelect = (entry: DiscoverEntry) => {
+    setSelected(entry);
+    setView("detail");
+  };
+
+  const handleBack = () => {
+    setView("list");
+    setSelected(null);
+  };
+
+  if (view === "detail" && selected) {
+    return (
+      <DiscoverDetail
+        entry={selected}
+        onBack={handleBack}
+        onViewOnMap={onViewOnMap}
+      />
+    );
+  }
+
+  return <DiscoverList onSelect={handleSelect} />;
+}
