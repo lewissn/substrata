@@ -72,12 +72,14 @@ export default function FeedSheet({
         {/* Title row */}
         <div className="flex items-center justify-between mb-2.5">
           <div>
-            <h1 className="text-[14px] font-semibold tracking-tight text-zinc-100">
-              Substrata
-            </h1>
-            <span className="text-[10px] text-zinc-600">
-              {cards.length > 0 ? `${cards.length} places nearby` : "Explore layers of time"}
+            <span className="text-[13px] font-semibold tracking-tight text-zinc-300">
+              Nearby
             </span>
+            {cards.length > 0 && (
+              <span className="text-[10px] text-zinc-600 ml-1.5">
+                {cards.length} places
+              </span>
+            )}
           </div>
 
           {/* Filters toggle */}
