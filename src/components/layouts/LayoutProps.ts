@@ -2,10 +2,11 @@ import type { Era, PlaceCard, PlaceKind, PlaceSource } from "@/domain/placeCard"
 import type { ReconstructionResult } from "@/app/api/reconstruct/route";
 import type { MapTheme } from "@/components/Map";
 import type { SavedPlace } from "@/domain/savedPlaces";
+import type { ActivePlace, TimeStopDef } from "@/domain/thisPlace";
 
 /**
  * Shared prop interface for DesktopLayout and MobileLayout.
- * All state lives in page.tsx; layouts are presentation + callbacks.
+ * All state lives in HomeApp; layouts are presentation + callbacks.
  */
 export type LayoutProps = {
   // Search
@@ -79,4 +80,14 @@ export type LayoutProps = {
 
   // Discover / Archive
   onViewOnMap: (params: { lat: number; lng: number; ma?: number }) => void;
+
+  // This Place Through Time
+  activePlace: ActivePlace | null;
+  dropPinMode: boolean;
+  droppedPin: [number, number] | null;
+  onToggleDropPinMode: () => void;
+  onDropPin: (lngLat: [number, number]) => void;
+  onClearPlace: () => void;
+  onSetTimeStop: (stop: TimeStopDef) => void;
+  onFlyToPlace: () => void;
 };

@@ -8,6 +8,7 @@ import DetailSheet from "@/components/sheets/DetailSheet";
 import TimeSheet from "@/components/sheets/TimeSheet";
 import FindsSheet from "@/components/sheets/FindsSheet";
 import DiscoverSheet from "@/components/discover/DiscoverSheet";
+import ThisPlacePanel from "@/components/ThisPlacePanel";
 import MobileSearchBar from "@/components/mobile/MobileSearchBar";
 import FloatingControls from "@/components/mobile/FloatingControls";
 import { ActiveOverlays } from "@/components/ui/ActiveOverlays";
@@ -19,7 +20,7 @@ import type { SavedPlace } from "@/domain/savedPlaces";
 // MobileLayout — map-first layout with bottom sheets
 // ---------------------------------------------------------------------------
 
-type SheetMode = "feed" | "detail" | "time" | "finds" | "discover";
+type SheetMode = "place" | "feed" | "detail" | "time" | "finds" | "discover";
 
 export default function MobileLayout(props: LayoutProps) {
   const {
@@ -42,9 +43,12 @@ export default function MobileLayout(props: LayoutProps) {
     mapTheme, onMapThemeChange,
     nearbyFossilCount, onSurpriseMe,
     savedPlaces, onSavePlace, onUnsavePlace, onRestoreFind, onViewOnMap,
+    activePlace, dropPinMode, droppedPin,
+    onToggleDropPinMode, onDropPin, onClearPlace, onSetTimeStop, onFlyToPlace,
   } = props;
 
-  const [sheetMode, setSheetMode] = useState<SheetMode>("feed");
+  // Default to "place" — This Place is the primary front view
+  const [sheetMode, setSheetMode] = useState<SheetMode>("place");
   const [snapPoint, setSnapPoint] = useState<SnapPoint>("collapsed");
 
   useEffect(() => {
@@ -61,24 +65,28 @@ export default function MobileLayout(props: LayoutProps) {
 
   const handleCloseDetail = useCallback(() => {
     onCloseSelected();
-    setSheetMode("feed");
+    setSheetMode("place");
     setSnapPoint("collapsed");
   }, [onCloseSelected]);
 
   const handleSnapChange = useCallback(
     (sp: SnapPoint) => {
       setSnapPoint(sp);
-      if (sp === "collapsed" && (sheetMode === "time" || sheetMode === "finds" || sheetMode === "discover")) {
-        setSheetMode("feed");
+      if (
+        sp === "collapsed" &&
+        (sheetMode === "time" || sheetMode === "finds" || sheetMode === "discover" || sheetMode === "feed")
+      ) {
+        setSheetMode("place");
       }
       if (sp === "collapsed" && sheetMode === "detail") {
         onCloseSelected();
-        setSheetMode("feed");
+        setSheetMode("place");
       }
     },
     [sheetMode, onCloseSelected]
   );
 
+  const openPlace = useCallback(() => { setSheetMode("place"); setSnapPoint("half"); }, []);
   const openFeed = useCallback(() => { setSheetMode("feed"); setSnapPoint("half"); }, []);
   const openTime = useCallback(() => { setSheetMode("time"); setSnapPoint("half"); }, []);
   const openFinds = useCallback(() => { setSheetMode("finds"); setSnapPoint("half"); }, []);
@@ -94,16 +102,29 @@ export default function MobileLayout(props: LayoutProps) {
   const handleRestoreFind = useCallback(
     (place: SavedPlace) => {
       onRestoreFind(place);
-      setSheetMode("feed");
+      setSheetMode("place");
       setSnapPoint("collapsed");
     },
     [onRestoreFind]
   );
 
+  // "View on map" collapses the sheet so user can see the map
+  const handleFlyToPlace = useCallback(() => {
+    onFlyToPlace();
+    setSnapPoint("collapsed");
+  }, [onFlyToPlace]);
+
+  // Activating drop pin mode collapses the sheet so user can tap the map
+  const handleActivateDropPin = useCallback(() => {
+    onToggleDropPinMode();
+    setSnapPoint("collapsed");
+  }, [onToggleDropPinMode]);
+
   const interactionEnabled = snapPoint === "collapsed";
 
   const sheetLabel =
-    sheetMode === "feed" ? "Nearby"
+    sheetMode === "place" ? "This Place"
+    : sheetMode === "feed" ? "Nearby"
     : sheetMode === "detail" ? "Details"
     : sheetMode === "finds" ? "My Finds"
     : sheetMode === "discover" ? "Archive"
@@ -112,7 +133,7 @@ export default function MobileLayout(props: LayoutProps) {
   const handleViewOnMap = useCallback(
     (params: { lat: number; lng: number; ma?: number }) => {
       onViewOnMap(params);
-      setSheetMode("feed");
+      setSheetMode("place");
       setSnapPoint("collapsed");
     },
     [onViewOnMap]
@@ -137,6 +158,9 @@ export default function MobileLayout(props: LayoutProps) {
         paleoEnabled={deepTimeEnabled ? paleoEnabled : false}
         paleoOpacity={paleoOpacity}
         mapTheme={mapTheme}
+        dropPinMode={dropPinMode}
+        droppedPin={droppedPin}
+        onDropPin={onDropPin}
       />
 
       <ActiveOverlays
@@ -160,17 +184,33 @@ export default function MobileLayout(props: LayoutProps) {
       />
 
       <FloatingControls
+        onOpenPlace={openPlace}
         onOpenFeed={openFeed}
         onOpenTime={openTime}
         onOpenFinds={openFinds}
         onToggleSave={handleToggleSave}
+        onActivateDropPin={handleActivateDropPin}
         sheetSnap={snapPoint}
         hasActiveFilters={hasActiveFilters}
         isCardSelected={!!selected}
         isCardSaved={isSaved}
+        dropPinMode={dropPinMode}
+        hasActivePlace={!!activePlace}
       />
 
       <BottomSheet snapPoint={snapPoint} onSnapChange={handleSnapChange} label={sheetLabel}>
+        {sheetMode === "place" && (
+          <ThisPlacePanel
+            activePlace={activePlace}
+            paleoData={paleoData}
+            dropPinMode={dropPinMode}
+            onActivateDropPin={handleActivateDropPin}
+            onClearPlace={onClearPlace}
+            onSetTimeStop={onSetTimeStop}
+            onFlyToPlace={handleFlyToPlace}
+          />
+        )}
+
         {sheetMode === "feed" && (
           <FeedSheet
             cards={rankedCards}

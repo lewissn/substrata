@@ -9,6 +9,7 @@ import FindsSheet from "@/components/sheets/FindsSheet";
 import DiscoverSheet from "@/components/discover/DiscoverSheet";
 import { Chip, KIND_CHIPS } from "@/components/ui/Chip";
 import { ActiveOverlays } from "@/components/ui/ActiveOverlays";
+import ThisPlacePanel from "@/components/ThisPlacePanel";
 import type { LayoutProps } from "./LayoutProps";
 import type { SavedPlace } from "@/domain/savedPlaces";
 
@@ -36,10 +37,13 @@ export default function DesktopLayout(props: LayoutProps) {
     mapTheme, onMapThemeChange,
     nearbyFossilCount, onSurpriseMe,
     savedPlaces, onSavePlace, onUnsavePlace, onRestoreFind, onViewOnMap,
+    activePlace, dropPinMode, droppedPin,
+    onToggleDropPinMode, onDropPin, onClearPlace, onSetTimeStop, onFlyToPlace,
   } = props;
 
   const [showFinds, setShowFinds] = useState(false);
   const [showDiscover, setShowDiscover] = useState(false);
+  const [showThisPlace, setShowThisPlace] = useState(true);
 
   const isSaved = selected ? savedPlaces.some((p) => p.id === selected.id) : false;
 
@@ -94,6 +98,23 @@ export default function DesktopLayout(props: LayoutProps) {
             <div className="flex items-center justify-between">
               <h1 className="text-[15px] font-semibold tracking-tight text-zinc-100">Substrata</h1>
               <div className="flex items-center gap-1">
+                {/* This Place toggle */}
+                <button
+                  onClick={() => { setShowThisPlace((v) => !v); setShowFinds(false); setShowDiscover(false); }}
+                  title="This Place Through Time"
+                  className={[
+                    "p-1.5 rounded-md transition",
+                    showThisPlace
+                      ? "text-[#89CDD1] bg-[rgba(31,90,92,0.20)]"
+                      : "text-zinc-600 hover:text-zinc-300",
+                  ].join(" ")}
+                  aria-label="This Place Through Time"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill={showThisPlace ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                    {!showThisPlace && <circle cx="12" cy="9" r="2.5" />}
+                  </svg>
+                </button>
                 {/* Archive / Discover toggle */}
                 <button
                   onClick={toggleDiscover}
@@ -142,6 +163,29 @@ export default function DesktopLayout(props: LayoutProps) {
             <p className="text-[11.5px] text-zinc-600 mt-0.5 tracking-wide">Explore layers of time</p>
           </div>
 
+          {/* ── Drop Pin button for desktop ── */}
+          <div className="px-4 py-2 border-b border-[rgba(255,255,255,0.05)] flex items-center gap-2">
+            <button
+              onClick={onToggleDropPinMode}
+              className={[
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-medium transition",
+                dropPinMode
+                  ? "border-[rgba(44,111,116,0.55)] bg-[rgba(31,90,92,0.20)] text-[#89CDD1]"
+                  : "border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] text-zinc-500 hover:text-zinc-300",
+              ].join(" ")}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill={dropPinMode ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+              </svg>
+              {dropPinMode ? "Click map to place pin…" : "Drop Pin"}
+            </button>
+            {activePlace && (
+              <button onClick={onClearPlace} className="text-[10px] text-zinc-600 hover:text-zinc-400 transition underline underline-offset-2">
+                Clear
+              </button>
+            )}
+          </div>
+
           {showDiscover ? (
             /* ── Archive ── */
             <div className="flex-1 overflow-hidden">
@@ -154,6 +198,19 @@ export default function DesktopLayout(props: LayoutProps) {
                 saves={savedPlaces}
                 onSelect={handleRestoreFind}
                 onUnsave={onUnsavePlace}
+              />
+            </div>
+          ) : showThisPlace ? (
+            /* ── This Place Through Time ── */
+            <div className="flex-1 overflow-y-auto">
+              <ThisPlacePanel
+                activePlace={activePlace}
+                paleoData={paleoData}
+                dropPinMode={dropPinMode}
+                onActivateDropPin={onToggleDropPinMode}
+                onClearPlace={onClearPlace}
+                onSetTimeStop={onSetTimeStop}
+                onFlyToPlace={onFlyToPlace}
               />
             </div>
           ) : (
@@ -241,6 +298,9 @@ export default function DesktopLayout(props: LayoutProps) {
             paleoEnabled={deepTimeEnabled ? paleoEnabled : false}
             paleoOpacity={paleoOpacity}
             mapTheme={mapTheme}
+            dropPinMode={dropPinMode}
+            droppedPin={droppedPin}
+            onDropPin={onDropPin}
           />
 
           <ActiveOverlays

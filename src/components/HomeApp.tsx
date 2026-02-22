@@ -14,6 +14,12 @@ import { seaLevelAtMa } from "@/domain/lgm";
 import { eraFromYears } from "@/domain/humanHistory";
 import { haptic } from "@/domain/haptics";
 import type { ReconstructionResult } from "@/app/api/reconstruct/route";
+import {
+  activePlaceFromCard,
+  customPin,
+  type ActivePlace,
+  type TimeStopDef,
+} from "@/domain/thisPlace";
 
 // ---------------------------------------------------------------------------
 // HomeApp — client component; owns all app state and delegates to layouts.
@@ -62,6 +68,11 @@ export default function HomeApp() {
   const [coastlineGeoJSON, setCoastlineGeoJSON] = useState<GeoJSON.FeatureCollection | null>(null);
   const coastlineFetchRef = useRef<AbortController | null>(null);
   const lastCoastlineMaRef = useRef<number>(0);
+
+  // --- This Place Through Time ---
+  const [activePlace, setActivePlace] = useState<ActivePlace | null>(null);
+  const [dropPinMode, setDropPinMode] = useState(false);
+  const [droppedPin, setDroppedPin] = useState<[number, number] | null>(null);
 
   // --- My Finds ---
   const { saves: savedPlaces, save: savePlace, unsave: unsavePlace } = useSavedPlaces();
@@ -279,6 +290,44 @@ export default function HomeApp() {
   const handleCardSelect = useCallback((card: PlaceCard) => {
     setSelected(card);
     setCenter([card.coords.lng, card.coords.lat]);
+    // Also update activePlace so "This Place" panel reflects the selection
+    setActivePlace(activePlaceFromCard(card));
+    setDroppedPin(null); // clear any custom pin when a card is selected
+  }, []);
+
+  // Drop-pin handlers
+  const handleDropPin = useCallback((lngLat: [number, number]) => {
+    const [lng, lat] = lngLat;
+    setDroppedPin(lngLat);
+    setCenter(lngLat);
+    setActivePlace(customPin(lat, lng));
+    setDropPinMode(false);
+    setSelected(null);
+  }, []);
+
+  const handleClearPlace = useCallback(() => {
+    setActivePlace(null);
+    setDroppedPin(null);
+    setSelected(null);
+  }, []);
+
+  const handleFlyToPlace = useCallback(() => {
+    if (!activePlace) return;
+    setCenter([activePlace.lng, activePlace.lat]);
+  }, [activePlace]);
+
+  const handleSetTimeStop = useCallback((stop: TimeStopDef) => {
+    if (stop.ma != null && stop.ma > 0) {
+      setMa(stop.ma);
+      setDeepTimeEnabled(true);
+      setPaleoEnabled(true);
+    } else if (stop.yearsAgo != null && stop.yearsAgo > 0) {
+      setDeepTimeEnabled(false);
+      setHistoricalYears(stop.yearsAgo);
+    } else {
+      setDeepTimeEnabled(false);
+      setHistoricalYears(0);
+    }
   }, []);
 
   const handleSurpriseMe = () => {
@@ -464,6 +513,15 @@ export default function HomeApp() {
         setPaleoEnabled(true);
       }
     },
+    // This Place Through Time
+    activePlace,
+    dropPinMode,
+    droppedPin,
+    onToggleDropPinMode: () => setDropPinMode((v) => !v),
+    onDropPin: handleDropPin,
+    onClearPlace: handleClearPlace,
+    onSetTimeStop: handleSetTimeStop,
+    onFlyToPlace: handleFlyToPlace,
   };
 
   // Wrap in z-10 so the full-screen app covers the z-0 SEO content below
