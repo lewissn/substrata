@@ -32,6 +32,7 @@ export default function MobileLayout(props: LayoutProps) {
     activeEra, onEraChange,
     deepTimeEnabled, onDeepTimeToggle,
     ma, onMaChange,
+    historicalYears, onHistoricalYearsChange,
     seaLevelOverride, onSeaLevelChange,
     overlayBoost, onOverlayBoostToggle,
     paleoEnabled, onPaleoToggle,
@@ -217,6 +218,8 @@ export default function MobileLayout(props: LayoutProps) {
             onDeepTimeToggle={onDeepTimeToggle}
             ma={ma}
             onMaChange={onMaChange}
+            historicalYears={historicalYears}
+            onHistoricalYearsChange={onHistoricalYearsChange}
             seaLevelOverride={seaLevelOverride}
             onSeaLevelChange={onSeaLevelChange}
             overlayBoost={overlayBoost}

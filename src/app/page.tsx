@@ -11,6 +11,7 @@ import { scoreCard } from "@/domain/rank";
 import { dedupe } from "@/domain/dedupe";
 import { eraFromMa } from "@/domain/time";
 import { seaLevelAtMa } from "@/domain/lgm";
+import { eraFromYears } from "@/domain/humanHistory";
 import { haptic } from "@/domain/haptics";
 import type { ReconstructionResult } from "@/app/api/reconstruct/route";
 
@@ -39,6 +40,9 @@ export default function Home() {
   // --- Deep Time ---
   const [deepTimeEnabled, setDeepTimeEnabled] = useState(false);
   const [ma, setMa] = useState(0);
+
+  // --- Human History (Recent History mode, 0–10,000 years) ---
+  const [historicalYears, setHistoricalYears] = useState(0);
 
   // --- Map theme ---
   const [mapTheme, setMapTheme] = useState<MapTheme>("terrain");
@@ -89,11 +93,13 @@ export default function Home() {
   // Effective center for search
   const activeCenter = useMemo<[number, number]>(() => mapCenter ?? center, [mapCenter, center]);
 
-  // Effective era: in deep time mode, derive from Ma
+  // Effective era: drives card ranking.
+  // Deep Time → derive from Ma; Recent History → derive from years; else manual era filter.
   const effectiveEra = useMemo(() => {
     if (deepTimeEnabled && ma > 0) return eraFromMa(ma);
+    if (!deepTimeEnabled && historicalYears > 0) return eraFromYears(historicalYears);
     return activeEra;
-  }, [deepTimeEnabled, ma, activeEra]);
+  }, [deepTimeEnabled, ma, activeEra, historicalYears]);
 
   // --- Filtering + ranking pipeline ---
   const filteredCards = useMemo(() => {
@@ -426,6 +432,8 @@ export default function Home() {
     onDeepTimeToggle: () => setDeepTimeEnabled((v) => !v),
     ma,
     onMaChange: setMa,
+    historicalYears,
+    onHistoricalYearsChange: setHistoricalYears,
     seaLevelOverride,
     onSeaLevelChange: setSeaLevelOverride,
     overlayBoost,

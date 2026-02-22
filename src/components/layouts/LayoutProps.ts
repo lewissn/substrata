@@ -39,6 +39,9 @@ export type LayoutProps = {
   onDeepTimeToggle: () => void;
   ma: number;
   onMaChange: (ma: number) => void;
+  /** Years ago for Recent History mode (0 = present, up to ~12,000) */
+  historicalYears: number;
+  onHistoricalYearsChange: (years: number) => void;
 
   // Overlays
   seaLevelOverride: number | null;
