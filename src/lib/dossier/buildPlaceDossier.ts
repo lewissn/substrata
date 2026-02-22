@@ -15,6 +15,7 @@ import type {
   DossierSource,
   DossierVisuals,
 } from "./types";
+import type { HumanContext } from "./humanContext";
 import type { ActivePlace, TimeStopDef } from "@/domain/thisPlace";
 import type { ReconstructionResult } from "@/app/api/reconstruct/route";
 import type { FossilEnrichment } from "@/domain/fossilEnrichment";
@@ -37,6 +38,8 @@ export type BuildDossierInput = {
   fossils?: FossilEnrichment | null;
   /** Pre-fetched hero image URL (from Wikipedia or other). */
   heroImageUrl?: string | null;
+  /** Pre-fetched human layer context (y2k / y5k / y10k stops). */
+  humanContext?: HumanContext | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -44,7 +47,7 @@ export type BuildDossierInput = {
 // ---------------------------------------------------------------------------
 
 export function buildPlaceDossier(input: BuildDossierInput): PlaceDossier {
-  const { place, stop, paleoData, fossils, heroImageUrl } = input;
+  const { place, stop, paleoData, fossils, heroImageUrl, humanContext } = input;
 
   // 1. Classification via existing narrative engine
   const narrative = generatePlaceNarrative({
@@ -107,6 +110,7 @@ export function buildPlaceDossier(input: BuildDossierInput): PlaceDossier {
       settingLabel: narrative.biome.settingLabel,
     },
     narrative: dossierNarrative,
+    humanContext: humanContext ?? undefined,
     life,
     geology,
     visuals,
