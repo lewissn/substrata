@@ -40,6 +40,8 @@ export type BuildDossierInput = {
   heroImageUrl?: string | null;
   /** Pre-fetched human layer context (y2k / y5k / y10k stops). */
   humanContext?: HumanContext | null;
+  /** For yearsAgo === 0: urban detection (OSM/Wikidata/settlement nearby). When true, biome = Urban, no forest/taiga/tundra. */
+  isUrban?: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -51,11 +53,19 @@ export function buildPlaceDossier(input: BuildDossierInput): PlaceDossier {
 
   const yearsAgo = stop.yearsAgo ?? (stop.ma != null && stop.ma > 0 ? undefined : 0);
   const isModern = yearsAgo === 0;
+  const isLGM =
+    (yearsAgo != null && yearsAgo >= 18_000 && yearsAgo <= 22_000) || stop.key === "ka20";
   const isRecentHuman = yearsAgo != null && yearsAgo > 0 && yearsAgo <= 10_000;
   const isDeepTime = stop.ma != null && stop.ma > 0;
 
   if (isModern) {
+    if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
+      console.debug("Modern branch used");
+    }
     return buildModernDossier(input);
+  }
+  if (isLGM) {
+    return buildRecentHumanDossier(input);
   }
   if (isRecentHuman) {
     return buildRecentHumanDossier(input);
@@ -64,34 +74,138 @@ export function buildPlaceDossier(input: BuildDossierInput): PlaceDossier {
     return buildDeepTimeDossier(input);
   }
 
-  // Fallback only for edge cases (e.g. ka20 with yearsAgo)
+  if (typeof process !== "undefined" && process.env.NODE_ENV === "development" && yearsAgo === 0) {
+    console.warn("buildPlaceDossier: yearsAgo === 0 but deep-time path was reached");
+  }
   return buildDeepTimeDossier(input);
 }
 
 // ---------------------------------------------------------------------------
-// Modern (Now) — urban/latitude only; no paleo; hero = Wikipedia first
+// Modern (yearsAgo === 0) — deterministic: urban override or latitude climate band only.
+// No paleolatitude, no period templates, no deep-time logic.
+// Hero: Wikipedia thumbnail > Wikidata P18 > Commons > placeholder (handled in visualCatalog).
 // ---------------------------------------------------------------------------
 
+/** Modern climate band from latitude only (0–23 Tropical, 23–40 Subtropical, 40–60 Temperate, >60 Subpolar). London ~51° → Temperate. */
+function getModernClimateBand(lat: number): "tropical" | "subtropical" | "temperate" | "subpolar" {
+  const a = Math.abs(lat);
+  if (a <= 23) return "tropical";
+  if (a <= 40) return "subtropical";
+  if (a <= 60) return "temperate";
+  return "subpolar";
+}
+
+/** Biome labels for modern (non-urban). Never taiga/tundra/boreal for mid-latitudes; subpolar only >60°. */
+const MODERN_BIOME_BY_BAND: Record<
+  ReturnType<typeof getModernClimateBand>,
+  { biomeLabel: string; settingLabel: string; narrative: string; bullets: string[] }
+> = {
+  tropical: {
+    biomeLabel: "Tropical",
+    settingLabel: "Tropical / Equatorial",
+    narrative: "This region lies in the tropics. Today it likely supports tropical rainforest, savanna, or seasonal forest depending on rainfall — among the most biodiverse climates on Earth.",
+    bullets: [
+      "Warm year-round, high biodiversity",
+      "Rainfall and seasonality shape forest vs savanna",
+      "Under pressure from land-use change",
+    ],
+  },
+  subtropical: {
+    biomeLabel: "Subtropical",
+    settingLabel: "Subtropical",
+    narrative: "At subtropical latitudes the landscape today typically features dry forest, Mediterranean scrub, or savanna — with distinct wet and dry seasons and warm temperatures.",
+    bullets: [
+      "Warm, seasonal rainfall",
+      "Mediterranean, monsoon, or savanna regimes",
+      "Many of the world's major population centres",
+    ],
+  },
+  temperate: {
+    biomeLabel: "Temperate",
+    settingLabel: "Mid-latitude",
+    narrative: "At mid-latitudes the landscape today is typically temperate forest, grassland, or agricultural land — with four distinct seasons and moderate rainfall.",
+    bullets: [
+      "Four seasons, moderate precipitation",
+      "Deciduous and mixed forest or farmland",
+      "Heavily modified by agriculture in many regions",
+    ],
+  },
+  subpolar: {
+    biomeLabel: "Subpolar / Boreal",
+    settingLabel: "Subpolar",
+    narrative: "At high latitudes the landscape is typically boreal forest (taiga) or tundra — cold climates with short growing seasons and permafrost in many areas.",
+    bullets: [
+      "Boreal forest or tundra",
+      "Long winters, short growing season",
+      "Permafrost in many regions",
+    ],
+  },
+};
+
 function buildModernDossier(input: BuildDossierInput): PlaceDossier {
-  const { place, stop, heroImageUrl } = input;
-  const narrative = generatePlaceNarrative({
-    lat: place.lat,
-    lng: place.lng,
-    stopKey: "now",
-    paleoLat: null,
-  });
+  const { place, stop, heroImageUrl, isUrban } = input;
+
   const geology = getGeologyForStop(stop);
+  const periodName = derivePeriodName(stop);
+
+  let setting: PlaceDossier["setting"];
+  let dossierNarrative: DossierNarrative;
+
+  if (isUrban) {
+    if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
+      console.debug("Urban detected:", place.title);
+    }
+    setting = {
+      paleolatBand: "temperate",
+      landSea: "land",
+      biome: "Urban / Built Environment",
+      settingLabel: "Urban",
+    };
+    dossierNarrative = {
+      summary:
+        "This location is in or near an urban area. Built-up and residential land use dominates; vegetation and natural biomes are heavily modified.",
+      bullets: [
+        "Urban or built-up land use",
+        "Human settlement and infrastructure",
+        "Natural vegetation largely replaced or fragmented",
+      ],
+      deeper: undefined,
+    };
+  } else {
+    const band = getModernClimateBand(place.lat);
+    const modern = MODERN_BIOME_BY_BAND[band];
+    const paleolatBand: PlaceDossier["setting"]["paleolatBand"] =
+      band === "subpolar" ? "subpolar" : band === "tropical" || band === "subtropical" ? "tropical" : "temperate";
+    setting = {
+      paleolatBand,
+      landSea: "land",
+      biome: modern.biomeLabel,
+      settingLabel: modern.settingLabel,
+    };
+    dossierNarrative = {
+      summary: modern.narrative,
+      bullets: modern.bullets,
+      deeper: undefined,
+    };
+  }
+
   const hero = resolveHeroVisual(
     "now",
-    narrative.latBand,
-    narrative.seaSetting,
+    setting.paleolatBand,
+    setting.landSea,
     heroImageUrl ?? undefined,
   );
-  const dossierNarrative = buildNarrative(stop, narrative, null);
-  const life = buildLifeSection(stop, narrative, null);
+  const life = buildLifeSection(
+    stop,
+    { latBand: setting.paleolatBand, latBandLabel: setting.paleolatBand, seaSetting: setting.landSea, biome: { biomeLabel: setting.biome, settingLabel: setting.settingLabel, narrative: dossierNarrative.summary, bullets: dossierNarrative.bullets, wikiPage: "" }, confidence: "low", usedPaleoLat: false },
+    null,
+  );
   const visuals = buildVisuals(stop, hero);
-  const sources = buildSources(narrative, null, null);
-  const periodName = derivePeriodName(stop);
+  const sources = buildSources(
+    { latBand: setting.paleolatBand, latBandLabel: setting.paleolatBand, seaSetting: setting.landSea, biome: { biomeLabel: setting.biome, settingLabel: setting.settingLabel, narrative: "", bullets: [], wikiPage: "" }, confidence: "low", usedPaleoLat: false },
+    null,
+    null,
+  );
 
   return {
     place: { id: place.id, title: place.title, lat: place.lat, lng: place.lng, source: place.source },
@@ -104,12 +218,7 @@ function buildModernDossier(input: BuildDossierInput): PlaceDossier {
       periodName,
     },
     confidence: "low",
-    setting: {
-      paleolatBand: narrative.latBand,
-      landSea: narrative.seaSetting,
-      biome: narrative.biome.biomeLabel,
-      settingLabel: narrative.biome.settingLabel,
-    },
+    setting,
     narrative: dossierNarrative,
     life,
     geology,

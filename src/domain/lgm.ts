@@ -109,6 +109,32 @@ export const LGM_ICE_SHEETS: IceSheet[] = [
   PATAGONIAN,
 ];
 
+/** Point-in-polygon (ray casting). Ring is [lng, lat][]. */
+function pointInRing(lng: number, lat: number, ring: [number, number][]): boolean {
+  let inside = false;
+  const n = ring.length;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const [lngI, latI] = ring[i];
+    const [lngJ, latJ] = ring[j];
+    if (latI > lat !== latJ > lat) {
+      const t = (lat - latJ) / (latI - latJ);
+      const x = lngJ + t * (lngI - lngJ);
+      if (lng < x) inside = !inside;
+    }
+  }
+  return inside;
+}
+
+/** True if (lat, lng) is inside any LGM ice sheet polygon. Use for LGM narrative only — do not infer ice from latitude. */
+export function isPointInLGMIce(lat: number, lng: number): boolean {
+  for (const sheet of LGM_ICE_SHEETS) {
+    for (const ring of sheet.coordinates) {
+      if (pointInRing(lng, lat, ring)) return true;
+    }
+  }
+  return false;
+}
+
 /** Convert ice sheets to a GeoJSON FeatureCollection */
 export function lgmIceGeoJSON(): GeoJSON.FeatureCollection {
   return {
