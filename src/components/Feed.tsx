@@ -67,10 +67,10 @@ function FeedCard({
         {/* Content */}
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-2 justify-between">
-            <div className="font-medium text-[13.5px] leading-snug text-zinc-100 truncate">
+            <div className="font-medium text-[14px] leading-snug text-zinc-100 truncate">
               {card.title}
             </div>
-            <div className="text-[11px] text-zinc-600 flex-shrink-0 pt-0.5">
+            <div className="text-[11px] text-zinc-500 flex-shrink-0 pt-0.5 tabular-nums">
               {formatDistance(card.distanceM)}
             </div>
           </div>
@@ -83,11 +83,11 @@ function FeedCard({
             {timeDisplay && (
               <>
                 <span className="text-zinc-700 text-[11px]">·</span>
-                <span className="text-[10px] text-zinc-600">{timeDisplay}</span>
+                <span className="text-[10px] text-zinc-500">{timeDisplay}</span>
               </>
             )}
             <span className="text-zinc-700 text-[11px]">·</span>
-            <span className="text-[11px] text-zinc-600">
+            <span className="text-[11px] text-zinc-500">
               {card.source === "wikipedia" ? "Wikipedia" :
                card.source === "pbdb" ? "PBDB" :
                card.kind.replaceAll("_", " ")}
@@ -95,7 +95,7 @@ function FeedCard({
           </div>
 
           {/* Summary */}
-          <div className="text-[12.5px] text-zinc-400 leading-relaxed line-clamp-2 mt-1.5">
+          <div className="text-[13px] text-zinc-400 leading-relaxed line-clamp-2 mt-1.5">
             {card.summary ?? (
               card.source === "osm" ? "OpenStreetMap feature" :
               card.source === "pbdb" ? "Fossil occurrence" :
@@ -132,14 +132,14 @@ export default function Feed({
       )}
 
       {cards.length === 0 && !loading && !error && (
-        <p className="text-zinc-600 text-[12.5px] pt-2">
+        <p className="text-zinc-600 text-[13px] pt-2">
           Move the map then press{" "}
           <span className="text-zinc-400">Search area</span> to explore.
         </p>
       )}
 
       {tooFewResults && !loading && (
-        <div className="text-[11.5px] text-zinc-600 border border-[rgba(255,255,255,0.05)] rounded-xl p-2.5 bg-[rgba(255,255,255,0.015)]">
+        <div className="text-[12px] text-zinc-600 border border-[rgba(255,255,255,0.05)] rounded-xl p-2.5 bg-[rgba(255,255,255,0.015)]">
           Few results here — try zooming out and searching a wider area.
         </div>
       )}

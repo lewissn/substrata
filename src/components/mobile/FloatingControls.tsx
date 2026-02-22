@@ -101,7 +101,7 @@ export default function FloatingControls({
             <circle cx="12" cy="12" r="10" />
             <polyline points="12 6 12 12 16 14" />
           </svg>
-          <span className="text-[8px] text-zinc-600 leading-none">Time</span>
+          <span className="text-[9px] text-zinc-500 leading-none">Time</span>
           {hasActiveFilters && (
             <div className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-[#2C6F74]" />
           )}

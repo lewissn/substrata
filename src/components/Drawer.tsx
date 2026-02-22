@@ -217,7 +217,7 @@ export default function Drawer({
 
             {/* Attribution */}
             {attribution && (
-              <div className="mt-3 pt-2 border-t border-[rgba(255,255,255,0.04)] text-[9px] text-zinc-700">
+              <div className="mt-3 pt-2 border-t border-[rgba(255,255,255,0.04)] text-[10px] text-zinc-700">
                 {attribution}
               </div>
             )}
