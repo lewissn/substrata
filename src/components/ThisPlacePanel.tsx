@@ -9,6 +9,13 @@ import type { FossilEnrichment } from "@/domain/fossilEnrichment";
 import { buildPlaceDossier, wikiPageForFallback } from "@/lib/dossier/buildPlaceDossier";
 import type { PlaceDossier, DossierLife, DossierGeology, DossierSource } from "@/lib/dossier/types";
 import { isImg } from "@/lib/dossier/types";
+import type { HumanContext } from "@/lib/dossier/humanContext";
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const HUMAN_LAYER_STOPS = new Set(["y2k", "y5k", "y10k"]);
 
 // ---------------------------------------------------------------------------
 // Wikipedia thumbnail cache (shared session-level cache)
@@ -65,7 +72,9 @@ export default function ThisPlacePanel({
   const [imgVisible, setImgVisible] = useState(false);
   const [fossils, setFossils] = useState<FossilEnrichment | null>(null);
   const [wikiThumbUrl, setWikiThumbUrl] = useState<string | null>(null);
+  const [humanContext, setHumanContext] = useState<HumanContext | null>(null);
   const prevFetchKey = useRef("");
+  const prevHumanKey = useRef("");
 
   const selectedStop = TIME_STOPS.find((s) => s.key === selectedKey) ?? TIME_STOPS[0];
 
@@ -96,6 +105,27 @@ export default function ThisPlacePanel({
     }
   }, [activePlace, selectedStop, paleoData]);
 
+  // Fetch human layer for recent-history stops (y2k / y5k / y10k)
+  useEffect(() => {
+    if (!activePlace || !HUMAN_LAYER_STOPS.has(selectedStop.key) || !selectedStop.yearsAgo) {
+      setHumanContext(null);
+      return;
+    }
+    const humanKey = `${activePlace.lat.toFixed(3)}:${activePlace.lng.toFixed(3)}:${selectedStop.key}`;
+    if (humanKey === prevHumanKey.current) return;
+    prevHumanKey.current = humanKey;
+
+    setHumanContext(null);
+    fetch(
+      `/api/humanLayer?lat=${activePlace.lat}&lng=${activePlace.lng}&yearsAgo=${selectedStop.yearsAgo}`,
+    )
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: HumanContext | null) => {
+        if (data) setHumanContext(data);
+      })
+      .catch(() => {});
+  }, [activePlace, selectedStop.key, selectedStop.yearsAgo]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Build dossier (synchronous, recalculates when inputs change)
   const dossier: PlaceDossier | null = useMemo(() => {
     if (!activePlace) return null;
@@ -105,8 +135,9 @@ export default function ThisPlacePanel({
       paleoData,
       fossils,
       heroImageUrl: wikiThumbUrl,
+      humanContext,
     });
-  }, [activePlace, selectedStop, paleoData, fossils, wikiThumbUrl]);
+  }, [activePlace, selectedStop, paleoData, fossils, wikiThumbUrl, humanContext]);
 
   // Fetch Wikipedia fallback image only if visual catalog has no match
   useEffect(() => {
@@ -263,7 +294,14 @@ export default function ThisPlacePanel({
       </div>
 
       {/* ── Dossier card ── */}
-      <DossierCard dossier={dossier} onFlyToPlace={onFlyToPlace} fossilsLoading={fossils?.loading ?? false} />
+      <DossierCard
+        dossier={dossier}
+        onFlyToPlace={onFlyToPlace}
+        fossilsLoading={fossils?.loading ?? false}
+        humanLayerLoading={
+          HUMAN_LAYER_STOPS.has(selectedKey) && humanContext === null
+        }
+      />
     </div>
   );
 }
@@ -514,10 +552,12 @@ function DossierCard({
   dossier,
   onFlyToPlace,
   fossilsLoading,
+  humanLayerLoading,
 }: {
   dossier: PlaceDossier;
   onFlyToPlace: () => void;
   fossilsLoading: boolean;
+  humanLayerLoading: boolean;
 }) {
   const { time, narrative, life, geology, sources } = dossier;
 
@@ -542,6 +582,15 @@ function DossierCard({
           {time.fullLabel}
         </div>
       </div>
+
+      {/* Human layer — above environmental context for recent-history stops */}
+      {dossier.humanContext ? (
+        <HumanContextBlock ctx={dossier.humanContext} />
+      ) : humanLayerLoading ? (
+        <div className="text-[10px] text-zinc-700 animate-pulse">
+          Identifying historical context\u2026
+        </div>
+      ) : null}
 
       {/* Setting badges */}
       <SettingBadges dossier={dossier} />
@@ -591,6 +640,92 @@ function DossierCard({
           </span>
         )}
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Human context block
+// ---------------------------------------------------------------------------
+
+const TIER_LABELS: Record<1 | 2 | 3, string> = {
+  1: "Settlement",
+  2: "Archaeological",
+  3: "Regional context",
+};
+
+function HumanContextBlock({ ctx }: { ctx: HumanContext }) {
+  const [imgErrored, setImgErrored] = useState(false);
+
+  return (
+    <div className="rounded-lg border border-[rgba(44,111,116,0.18)] bg-[rgba(31,90,92,0.07)] p-3 space-y-2">
+      {/* Header row */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-[9px] uppercase tracking-widest font-semibold text-[#89CDD1]">
+          Human layer
+        </div>
+        <span
+          className={[
+            "text-[8px] px-1.5 py-0.5 rounded-md border font-medium",
+            ctx.tier === 1
+              ? "bg-[rgba(44,111,116,0.15)] border-[rgba(44,111,116,0.30)] text-[#89CDD1]"
+              : ctx.tier === 2
+              ? "bg-[rgba(140,158,96,0.10)] border-[rgba(140,158,96,0.22)] text-[#B0C478]"
+              : "bg-[rgba(255,255,255,0.03)] border-[rgba(255,255,255,0.07)] text-zinc-600",
+          ].join(" ")}
+        >
+          {TIER_LABELS[ctx.tier]}
+        </span>
+      </div>
+
+      {/* Thumbnail (Tier 1 / 2 only, if available and not errored) */}
+      {ctx.tier !== 3 && ctx.topEntity?.imageUrl && !imgErrored && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={ctx.topEntity.imageUrl}
+          alt={ctx.topEntity.name}
+          loading="lazy"
+          onError={() => setImgErrored(true)}
+          className="w-full h-16 object-cover rounded-md opacity-60"
+        />
+      )}
+
+      {/* Headline */}
+      <div className="text-[12px] font-semibold text-zinc-200 leading-snug">
+        {ctx.headline}
+      </div>
+
+      {/* Summary */}
+      <p className="text-[11px] text-zinc-400 leading-relaxed">{ctx.summary}</p>
+
+      {/* Supporting entities (Tier 1 / 2 only) */}
+      {ctx.tier !== 3 && ctx.entities.length > 0 && (
+        <div className="flex flex-wrap gap-1 pt-0.5">
+          {ctx.entities.slice(0, 3).map((e, i) => (
+            <span
+              key={i}
+              className="text-[9px] px-1.5 py-0.5 rounded-md bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.07)] text-zinc-600"
+            >
+              {e.name}
+              {e.distanceKm != null && e.distanceKm > 0 && (
+                <span className="text-zinc-700"> · {e.distanceKm} km</span>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Wikipedia link */}
+      {ctx.wikiUrl && (
+        <a
+          href={ctx.wikiUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-[9px] text-zinc-600 underline decoration-zinc-800 hover:text-zinc-400 hover:decoration-zinc-600 transition"
+        >
+          More on Wikipedia →
+        </a>
+      )}
     </div>
   );
 }

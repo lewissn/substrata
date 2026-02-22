@@ -108,6 +108,12 @@ export function isImg(v: Img | VisualPlaceholder): v is Img {
 }
 
 // ---------------------------------------------------------------------------
+// Human Context — tiered human settlement / history layer
+// ---------------------------------------------------------------------------
+
+export type { HumanContext, HumanContextTier, HumanEvidence } from "./humanContext";
+
+// ---------------------------------------------------------------------------
 // Sources
 // ---------------------------------------------------------------------------
 
@@ -150,6 +156,8 @@ export type PlaceDossier = {
   confidence: DossierConfidence;
   setting: DossierSetting;
   narrative: DossierNarrative;
+  /** Human settlement / historical context (y2k / y5k / y10k stops only). */
+  humanContext?: import("./humanContext").HumanContext;
   life: DossierLife;
   geology: DossierGeology;
   visuals: DossierVisuals;
