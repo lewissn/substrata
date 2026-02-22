@@ -36,6 +36,12 @@ type Props = {
   paleoEnabled?: boolean;
   paleoOpacity?: number;
   mapTheme?: MapTheme;
+  /** When true the cursor changes to crosshair; map click drops a pin */
+  dropPinMode?: boolean;
+  /** Current dropped pin coordinates [lng, lat] — renders a marker */
+  droppedPin?: [number, number] | null;
+  /** Called when the user taps the map in drop-pin mode or via long press */
+  onDropPin?: (lngLat: [number, number]) => void;
 };
 
 // ---------------------------------------------------------------------------
@@ -208,6 +214,9 @@ export default function Map({
   paleoEnabled = false,
   paleoOpacity = 0.5,
   mapTheme = "terrain",
+  dropPinMode = false,
+  droppedPin = null,
+  onDropPin,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -231,9 +240,18 @@ export default function Map({
   const minimalLabelsRef = useRef(minimalLabels);
   const mapThemeRef = useRef<MapTheme>(mapTheme);
 
+  // Drop-pin refs
+  const dropPinModeRef = useRef(dropPinMode);
+  const onDropPinRef = useRef(onDropPin);
+  const pinMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  /** Set to true by layer click handlers to prevent the map-level handler from firing */
+  const layerClickedRef = useRef(false);
+
   // Keep refs in sync
   useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
   useEffect(() => { onCenterChangeRef.current = onCenterChange; }, [onCenterChange]);
+  useEffect(() => { dropPinModeRef.current = dropPinMode; }, [dropPinMode]);
+  useEffect(() => { onDropPinRef.current = onDropPin; }, [onDropPin]);
   useEffect(() => { selectedIdRef.current = selectedId ?? null; }, [selectedId]);
   useEffect(() => { maRef.current = ma; }, [ma]);
   useEffect(() => { coastlineRef.current = coastlineGeoJSON ?? null; }, [coastlineGeoJSON]);
@@ -485,6 +503,7 @@ export default function Map({
 
     // Point click → select
     map.on("click", LAYER_POINTS, (e) => {
+      layerClickedRef.current = true; // prevent drop-pin map-level handler
       const f = e.features?.[0];
       if (!f) return;
       const id = f.properties?.id as string | undefined;
@@ -492,6 +511,9 @@ export default function Map({
       const card = cardByIdRef.current.get(id);
       if (card) onSelectRef.current?.(card);
     });
+
+    // Cluster click also flags layerClicked
+    map.on("click", LAYER_CLUSTERS, () => { layerClickedRef.current = true; });
   }
 
   // =========================================================================
@@ -659,6 +681,94 @@ export default function Map({
       map.doubleClickZoom.disable();
     }
   }, [interactionEnabled]);
+
+  // Drop-pin cursor
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.getCanvas().style.cursor = dropPinMode ? "crosshair" : "";
+  }, [dropPinMode]);
+
+  // Drop-pin map-level click handler (registered once, checks ref at call time)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const handler = (e: mapboxgl.MapMouseEvent) => {
+      // Skip if a layer (point/cluster) handled this click
+      if (layerClickedRef.current) {
+        layerClickedRef.current = false;
+        return;
+      }
+      if (dropPinModeRef.current) {
+        onDropPinRef.current?.([e.lngLat.lng, e.lngLat.lat]);
+      }
+    };
+    map.on("click", handler);
+    return () => { map.off("click", handler); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Long-press on mobile always drops a pin (natural gesture)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const handleTouchStart = (e: mapboxgl.MapTouchEvent) => {
+      const touch = e.originalEvent.touches[0];
+      const startX = touch.clientX;
+      const startY = touch.clientY;
+
+      const cancel = () => {
+        if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+      };
+
+      longPressTimer = setTimeout(() => {
+        longPressTimer = null;
+        onDropPinRef.current?.([e.lngLat.lng, e.lngLat.lat]);
+      }, 650);
+
+      const onTouchMove = (me: TouchEvent) => {
+        if (
+          me.touches.length > 0 &&
+          (Math.abs(me.touches[0].clientX - startX) > 12 ||
+            Math.abs(me.touches[0].clientY - startY) > 12)
+        ) {
+          cancel();
+        }
+      };
+
+      map.once("touchend", cancel);
+      map.getCanvas().addEventListener("touchmove", onTouchMove, { once: true });
+    };
+
+    map.on("touchstart", handleTouchStart);
+    return () => { map.off("touchstart", handleTouchStart); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Dropped pin marker (works regardless of loadedRef since Marker is DOM-based)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (pinMarkerRef.current) {
+      pinMarkerRef.current.remove();
+      pinMarkerRef.current = null;
+    }
+
+    if (droppedPin) {
+      const el = document.createElement("div");
+      el.style.cssText =
+        "width:32px;height:36px;cursor:pointer;display:flex;align-items:flex-end;justify-content:center;";
+      el.innerHTML = `<svg width="28" height="34" viewBox="0 0 24 28" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 1C7.58 1 4 4.58 4 9c0 6.75 8 18 8 18s8-11.25 8-18c0-4.42-3.58-8-8-8z"
+          fill="#3A9096" stroke="rgba(255,255,255,0.9)" stroke-width="1.2"/>
+        <circle cx="12" cy="9" r="3" fill="white" opacity="0.95"/>
+      </svg>`;
+      pinMarkerRef.current = new mapboxgl.Marker({ element: el, anchor: "bottom" })
+        .setLngLat(droppedPin)
+        .addTo(map);
+    }
+  }, [droppedPin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // =========================================================================
   // Atmospheric tint class

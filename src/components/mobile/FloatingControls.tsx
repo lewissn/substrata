@@ -7,44 +7,65 @@ import type { SnapPoint } from "@/hooks/useBottomSheet";
 // FloatingControls — mobile map FABs
 // ---------------------------------------------------------------------------
 
-const HINT_KEY = "substrata_dt_hinted";
+const DT_HINT_KEY = "substrata_dt_hinted";
+const PIN_HINT_KEY = "substrata_pin_hinted";
 
 export default function FloatingControls({
+  onOpenPlace,
   onOpenFeed,
   onOpenTime,
   onOpenFinds,
   onToggleSave,
+  onActivateDropPin,
   sheetSnap,
   hasActiveFilters,
   isCardSelected,
   isCardSaved,
+  dropPinMode,
+  hasActivePlace,
 }: {
+  onOpenPlace: () => void;
   onOpenFeed: () => void;
   onOpenTime: () => void;
   onOpenFinds: () => void;
   onToggleSave: () => void;
+  onActivateDropPin: () => void;
   sheetSnap: SnapPoint;
   hasActiveFilters: boolean;
   isCardSelected: boolean;
   isCardSaved: boolean;
+  dropPinMode: boolean;
+  hasActivePlace: boolean;
 }) {
   const [clockPulse, setClockPulse] = useState(false);
-  const [showHint, setShowHint] = useState(false);
+  const [showDtHint, setShowDtHint] = useState(false);
+  const [showPinHint, setShowPinHint] = useState(false);
 
   useEffect(() => {
-    if (!localStorage.getItem(HINT_KEY)) {
+    if (!localStorage.getItem(DT_HINT_KEY)) {
       setClockPulse(true);
-      setShowHint(true);
+      setShowDtHint(true);
+    }
+    if (!localStorage.getItem(PIN_HINT_KEY)) {
+      setShowPinHint(true);
     }
   }, []);
 
   const handleOpenTime = () => {
     if (clockPulse) {
-      localStorage.setItem(HINT_KEY, "1");
+      localStorage.setItem(DT_HINT_KEY, "1");
       setClockPulse(false);
-      setShowHint(false);
+      setShowDtHint(false);
     }
     onOpenTime();
+  };
+
+  const handleOpenPlace = () => {
+    if (showPinHint) {
+      localStorage.setItem(PIN_HINT_KEY, "1");
+      setShowPinHint(false);
+    }
+    onOpenPlace();
   };
 
   const handleBookmark = () => {
@@ -63,6 +84,47 @@ export default function FloatingControls({
       className="fixed right-3 z-20 flex flex-col gap-2"
       style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 108px)" }}
     >
+      {/* This Place / Drop Pin button */}
+      <div className="relative">
+        {showPinHint && (
+          <div className="absolute right-[calc(100%+10px)] top-1/2 -translate-y-1/2 whitespace-nowrap pointer-events-none z-30">
+            <div className="bg-[rgba(9,9,11,0.97)] border border-[rgba(44,111,116,0.35)] rounded-lg px-2.5 py-1.5 shadow-drawer">
+              <span className="text-[10px] text-[#89CDD1] font-medium">
+                Explore this place through time
+              </span>
+            </div>
+            <div className="absolute right-[-5px] top-1/2 -translate-y-1/2 border-y-[4px] border-y-transparent border-l-[5px] border-l-[rgba(44,111,116,0.45)]" />
+          </div>
+        )}
+        <button
+          onClick={handleOpenPlace}
+          className={[
+            "relative w-11 h-11 rounded-full border backdrop-blur-xl shadow-drawer flex items-center justify-center transition active:scale-95",
+            hasActivePlace || dropPinMode
+              ? "border-[rgba(44,111,116,0.55)] bg-[rgba(9,9,11,0.97)] text-[#89CDD1]"
+              : "border-[rgba(255,255,255,0.09)] bg-[rgba(9,9,11,0.95)] text-zinc-300",
+          ].join(" ")}
+          aria-label="This Place Through Time"
+        >
+          <svg
+            width="17"
+            height="17"
+            viewBox="0 0 24 24"
+            fill={hasActivePlace ? "currentColor" : "none"}
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+            {!hasActivePlace && <circle cx="12" cy="9" r="2.5" />}
+          </svg>
+          {hasActivePlace && (
+            <div className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-[#3A9096]" />
+          )}
+        </button>
+      </div>
+
       {/* List toggle */}
       <button
         onClick={onOpenFeed}
@@ -76,18 +138,16 @@ export default function FloatingControls({
         </svg>
       </button>
 
-      {/* Time / Deep Time toggle — pulse + first-time hint */}
+      {/* Time / Deep Time toggle */}
       <div className="relative">
-        {showHint && (
+        {showDtHint && (
           <div className="absolute right-[calc(100%+10px)] top-1/2 -translate-y-1/2 whitespace-nowrap pointer-events-none z-30">
             <div className="bg-[rgba(9,9,11,0.97)] border border-[rgba(44,111,116,0.35)] rounded-lg px-2.5 py-1.5 shadow-drawer">
               <span className="text-[10px] text-[#89CDD1] font-medium">Explore Deep Time</span>
             </div>
-            {/* Arrow pointing right */}
             <div className="absolute right-[-5px] top-1/2 -translate-y-1/2 border-y-[4px] border-y-transparent border-l-[5px] border-l-[rgba(44,111,116,0.45)]" />
           </div>
         )}
-
         <button
           onClick={handleOpenTime}
           className={[
