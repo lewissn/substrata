@@ -40,6 +40,7 @@ export default function TimeControls({
   onMapThemeChange,
   paleoData,
   showEraChips = true,
+  hideDeepTimeToggle = false,
 }: {
   activeEra: Era | null;
   onEraChange: (era: Era | null) => void;
@@ -61,6 +62,8 @@ export default function TimeControls({
   paleoData?: ReconstructionResult | null;
   /** When false, era chip selector is hidden (filters live elsewhere, e.g. FeedSheet) */
   showEraChips?: boolean;
+  /** When true, the "Deep Time (Ma)" toggle button is hidden (Time sheet owns the mode toggle) */
+  hideDeepTimeToggle?: boolean;
 }) {
   return (
     <div className="border-b border-[rgba(255,255,255,0.05)]">
@@ -78,44 +81,46 @@ export default function TimeControls({
         </div>
       )}
 
-      {/* 2. Deep Time toggle block */}
-      <div className="px-4 pb-3">
-        <button
-          onClick={onDeepTimeToggle}
-          className={[
-            "w-full rounded-xl border px-3 py-2.5 text-left transition-all duration-200",
-            deepTimeEnabled
-              ? "bg-[rgba(31,90,92,0.20)] border-[rgba(44,111,116,0.45)] shadow-[0_0_12px_rgba(44,111,116,0.15)]"
-              : "bg-[rgba(31,90,92,0.06)] border-[rgba(44,111,116,0.20)] hover:bg-[rgba(31,90,92,0.12)] hover:border-[rgba(44,111,116,0.35)]",
-          ].join(" ")}
-        >
-          <div className="flex items-center justify-between">
-            <span
-              className={[
-                "text-[12px] font-semibold tracking-tight",
-                deepTimeEnabled ? "text-[#89CDD1]" : "text-zinc-500",
-              ].join(" ")}
-            >
-              Deep Time (Ma)
-            </span>
-            <span
-              className={[
-                "text-[9px] uppercase tracking-widest font-medium px-1.5 py-0.5 rounded-md border",
-                deepTimeEnabled
-                  ? "text-[#89CDD1] border-[rgba(44,111,116,0.35)] bg-[rgba(31,90,92,0.14)]"
-                  : "text-zinc-500 border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)]",
-              ].join(" ")}
-            >
-              {deepTimeEnabled ? "Active" : "Explore"}
-            </span>
-          </div>
-          <p className="text-[10px] text-zinc-500 mt-0.5 leading-snug">
-            {deepTimeEnabled
-              ? "Drag the slider to travel through geological time"
-              : "Journey millions of years into the past"}
-          </p>
-        </button>
-      </div>
+      {/* 2. Deep Time toggle block (hidden when TimeSheet owns the mode selector) */}
+      {!hideDeepTimeToggle && (
+        <div className="px-4 pb-3">
+          <button
+            onClick={onDeepTimeToggle}
+            className={[
+              "w-full rounded-xl border px-3 py-2.5 text-left transition-all duration-200",
+              deepTimeEnabled
+                ? "bg-[rgba(31,90,92,0.20)] border-[rgba(44,111,116,0.45)] shadow-[0_0_12px_rgba(44,111,116,0.15)]"
+                : "bg-[rgba(31,90,92,0.06)] border-[rgba(44,111,116,0.20)] hover:bg-[rgba(31,90,92,0.12)] hover:border-[rgba(44,111,116,0.35)]",
+            ].join(" ")}
+          >
+            <div className="flex items-center justify-between">
+              <span
+                className={[
+                  "text-[12px] font-semibold tracking-tight",
+                  deepTimeEnabled ? "text-[#89CDD1]" : "text-zinc-500",
+                ].join(" ")}
+              >
+                Deep Time (Ma)
+              </span>
+              <span
+                className={[
+                  "text-[9px] uppercase tracking-widest font-medium px-1.5 py-0.5 rounded-md border",
+                  deepTimeEnabled
+                    ? "text-[#89CDD1] border-[rgba(44,111,116,0.35)] bg-[rgba(31,90,92,0.14)]"
+                    : "text-zinc-500 border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)]",
+                ].join(" ")}
+              >
+                {deepTimeEnabled ? "Active" : "Explore"}
+              </span>
+            </div>
+            <p className="text-[10px] text-zinc-500 mt-0.5 leading-snug">
+              {deepTimeEnabled
+                ? "Drag the slider to travel through geological time"
+                : "Journey millions of years into the past"}
+            </p>
+          </button>
+        </div>
+      )}
 
       {/* 3. Ma slider */}
       {deepTimeEnabled && (
