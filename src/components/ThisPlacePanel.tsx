@@ -4,6 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { TIME_STOPS, formatCoords } from "@/domain/thisPlace";
 import type { ActivePlace, TimeStopDef } from "@/domain/thisPlace";
 import type { ReconstructionResult } from "@/app/api/reconstruct/route";
+import { generatePlaceNarrative } from "@/domain/placeNarrative";
+import type { PlaceNarrative } from "@/domain/placeNarrative";
+import { fetchFossilEnrichment } from "@/domain/fossilEnrichment";
+import type { FossilEnrichment } from "@/domain/fossilEnrichment";
 
 // ---------------------------------------------------------------------------
 // Wikipedia thumbnail cache (shared session-level cache)
@@ -66,7 +70,9 @@ export default function ThisPlacePanel({
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [imgVisible, setImgVisible] = useState(false);
   const [hintDismissed, setHintDismissed] = useState(true);
-  const prevStopKey = useRef("");
+  const [narrative, setNarrative] = useState<PlaceNarrative | null>(null);
+  const [fossils, setFossils] = useState<FossilEnrichment | null>(null);
+  const prevNarrativeKey = useRef("");
 
   // Check onboarding hint (client-only)
   useEffect(() => {
@@ -80,17 +86,47 @@ export default function ThisPlacePanel({
 
   const selectedStop = TIME_STOPS.find((s) => s.key === selectedKey) ?? TIME_STOPS[0];
 
-  // Fetch Wikipedia thumbnail when stop changes
+  // Generate narrative + fetch image when stop or place changes
   useEffect(() => {
-    if (selectedStop.key === prevStopKey.current) return;
-    prevStopKey.current = selectedStop.key;
+    if (!activePlace) {
+      setNarrative(null);
+      setFossils(null);
+      return;
+    }
+
+    const nKey = `${activePlace.lat.toFixed(4)}:${activePlace.lng.toFixed(4)}:${selectedStop.key}:${paleoData?.paleoLat?.toFixed(1) ?? "m"}`;
+    if (nKey === prevNarrativeKey.current) return;
+    prevNarrativeKey.current = nKey;
+
+    // Generate narrative (sync, memoized)
+    const n = generatePlaceNarrative({
+      lat: activePlace.lat,
+      lng: activePlace.lng,
+      stopKey: selectedStop.key,
+      paleoLat: paleoData?.paleoLat ?? null,
+    });
+    setNarrative(n);
+
+    // Fetch biome-aware image (from narrative wikiPage, not static stop wikiPage)
     setImgSrc(null);
     setImgVisible(false);
-    if (!selectedStop.wikiPage) return;
-    fetchWikiThumb(selectedStop.wikiPage).then((src) => {
-      if (src) setImgSrc(src);
-    });
-  }, [selectedStop]);
+    const wikiPage = n.biome.wikiPage;
+    if (wikiPage) {
+      fetchWikiThumb(wikiPage).then((src) => {
+        if (src) setImgSrc(src);
+      });
+    }
+
+    // Fetch fossils for deep time stops
+    if (selectedStop.kind === "deep" && selectedStop.ma) {
+      setFossils({ taxa: [], totalOccurrences: 0, loading: true });
+      fetchFossilEnrichment(activePlace.lat, activePlace.lng, selectedStop.ma).then(
+        (result) => setFossils(result),
+      );
+    } else {
+      setFossils(null);
+    }
+  }, [activePlace, selectedStop, paleoData]);
 
   const handleSelectStop = (stop: TimeStopDef) => {
     setSelectedKey(stop.key);
@@ -171,6 +207,10 @@ export default function ThisPlacePanel({
   // Active place — full view
   // ---------------------------------------------------------------------------
 
+  // Determine image wikiPage: use biome-aware page from narrative, or static stop page as fallback
+  const hasImage = !!imgSrc;
+  const hasWikiPage = !!(narrative?.biome.wikiPage ?? selectedStop.wikiPage);
+
   return (
     <div className="flex flex-col">
       {/* ── Wordmark ── */}
@@ -216,11 +256,11 @@ export default function ThisPlacePanel({
       </div>
 
       {/* ── Period image ── */}
-      {imgSrc && (
+      {hasImage && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={imgSrc}
-          alt={selectedStop.fullLabel}
+          src={imgSrc!}
+          alt={narrative?.biome.biomeLabel ?? selectedStop.fullLabel}
           loading="lazy"
           onLoad={() => setImgVisible(true)}
           onError={() => setImgSrc(null)}
@@ -228,8 +268,7 @@ export default function ThisPlacePanel({
           style={{ opacity: imgVisible ? 0.78 : 0 }}
         />
       )}
-      {/* Placeholder height so layout doesn't shift before image loads */}
-      {!imgSrc && selectedStop.wikiPage && (
+      {!hasImage && hasWikiPage && (
         <div className="w-full h-36 bg-[rgba(255,255,255,0.02)] flex items-center justify-center">
           <div className="text-[9px] text-zinc-700 uppercase tracking-widest">Loading image…</div>
         </div>
@@ -262,6 +301,8 @@ export default function ThisPlacePanel({
       {/* ── Story card ── */}
       <StoryCard
         stop={selectedStop}
+        narrative={narrative}
+        fossils={fossils}
         paleoData={paleoData}
         onFlyToPlace={onFlyToPlace}
       />
@@ -288,19 +329,106 @@ function Wordmark() {
 }
 
 // ---------------------------------------------------------------------------
-// Story card
+// Biome badges — compact pills showing classification result
+// ---------------------------------------------------------------------------
+
+function BiomeBadges({ narrative }: { narrative: PlaceNarrative }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {/* Biome label */}
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[rgba(140,158,96,0.12)] border border-[rgba(140,158,96,0.25)] text-[9px] font-medium text-[#B0C478]">
+        {narrative.biome.biomeLabel}
+      </span>
+      {/* Setting */}
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[rgba(44,111,116,0.10)] border border-[rgba(44,111,116,0.22)] text-[9px] font-medium text-[#89CDD1]">
+        {narrative.biome.settingLabel}
+      </span>
+      {/* Latitude band */}
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] text-[9px] font-medium text-zinc-500">
+        {narrative.latBandLabel}
+      </span>
+      {/* Confidence */}
+      {narrative.usedPaleoLat && (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.06)] text-[9px] text-zinc-600">
+          GPlates-verified
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Fossil section — shows top taxa from PBDB
+// ---------------------------------------------------------------------------
+
+function FossilSection({ fossils }: { fossils: FossilEnrichment }) {
+  if (fossils.loading) {
+    return (
+      <div className="text-[10px] text-zinc-600 animate-pulse">
+        Searching for nearby fossils…
+      </div>
+    );
+  }
+
+  if (fossils.taxa.length === 0) return null;
+
+  return (
+    <div className="space-y-1.5">
+      <div className="text-[9px] uppercase tracking-widest text-zinc-700 font-medium">
+        Nearby fossils ({fossils.totalOccurrences} occurrences)
+      </div>
+      <div className="space-y-1">
+        {fossils.taxa.map((t) => (
+          <div
+            key={t.name}
+            className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)]"
+          >
+            <div className="flex-1 min-w-0">
+              <div className="text-[11px] font-medium text-zinc-300 italic truncate">
+                {t.name}
+              </div>
+              <div className="text-[9px] text-zinc-600">
+                {[
+                  t.interval,
+                  t.phylum,
+                  t.distanceKm > 0 ? `~${t.distanceKm} km away` : null,
+                ].filter(Boolean).join(" · ")}
+              </div>
+            </div>
+            {t.count > 1 && (
+              <span className="text-[9px] text-zinc-600 font-mono shrink-0">
+                ×{t.count}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Story card — now powered by the narrative engine
 // ---------------------------------------------------------------------------
 
 function StoryCard({
   stop,
+  narrative,
+  fossils,
   paleoData,
   onFlyToPlace,
 }: {
   stop: TimeStopDef;
+  narrative: PlaceNarrative | null;
+  fossils: FossilEnrichment | null;
   paleoData: ReconstructionResult | null;
   onFlyToPlace: () => void;
 }) {
-  // For deep time stops, add a location-specific note if paleoData available
+  // Use narrative-engine content when available, fall back to static stop content
+  const displayNarrative = narrative?.biome.narrative ?? stop.narrative;
+  const displayBullets = narrative?.biome.bullets ?? stop.bullets;
+
+  // Location note for deep time when we have paleo data
   const locationNote = buildLocationNote(stop, paleoData);
 
   return (
@@ -320,8 +448,11 @@ function StoryCard({
         </div>
       </div>
 
+      {/* Biome badges */}
+      {narrative && <BiomeBadges narrative={narrative} />}
+
       {/* Narrative */}
-      <p className="text-[12px] text-zinc-400 leading-relaxed">{stop.narrative}</p>
+      <p className="text-[12px] text-zinc-400 leading-relaxed">{displayNarrative}</p>
 
       {/* Location-specific note from paleoData */}
       {locationNote && (
@@ -332,13 +463,16 @@ function StoryCard({
 
       {/* Bullet facts */}
       <ul className="space-y-1">
-        {stop.bullets.map((b, i) => (
+        {displayBullets.map((b, i) => (
           <li key={i} className="flex items-start gap-2 text-[11px] text-zinc-500">
             <span className="text-zinc-700 mt-0.5 shrink-0">·</span>
             <span className="leading-snug">{b}</span>
           </li>
         ))}
       </ul>
+
+      {/* Fossils */}
+      {fossils && <FossilSection fossils={fossils} />}
 
       {/* Actions */}
       <div className="pt-1 flex items-center gap-2">
