@@ -103,61 +103,66 @@ export default function ThisPlacePanel({
 
   if (!activePlace) {
     return (
-      <div className="flex flex-col items-center px-5 py-6 text-center">
-        {/* Icon */}
-        <div className="w-14 h-14 rounded-2xl bg-[rgba(31,90,92,0.12)] border border-[rgba(44,111,116,0.20)] flex items-center justify-center mb-4">
-          <svg
-            width="28"
-            height="28"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="rgba(44,111,116,0.7)"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-            <circle cx="12" cy="9" r="2.5" />
-          </svg>
-        </div>
+      <div className="flex flex-col">
+        {/* ── Wordmark ── */}
+        <Wordmark />
 
-        <h2 className="text-[14px] font-semibold text-zinc-200 mb-1">This Place Through Time</h2>
-        <p className="text-[12px] text-zinc-500 leading-relaxed mb-5 max-w-[240px]">
-          Drop a pin anywhere on the map — or select a place — to explore what was here across deep
-          time and human history.
-        </p>
-
-        {/* Primary CTA */}
-        <button
-          onClick={() => { dismissHint(); onActivateDropPin(); }}
-          className={[
-            "px-5 py-2.5 rounded-xl text-[12px] font-semibold border transition-all duration-150",
-            dropPinMode
-              ? "bg-[rgba(44,111,116,0.25)] border-[rgba(44,111,116,0.60)] text-[#89CDD1]"
-              : "bg-[rgba(31,90,92,0.18)] border-[rgba(44,111,116,0.40)] text-[#89CDD1] hover:bg-[rgba(31,90,92,0.28)]",
-          ].join(" ")}
-        >
-          {dropPinMode ? "Tap map to place pin…" : "Drop Pin"}
-        </button>
-
-        {/* Onboarding hint */}
-        {!hintDismissed && (
-          <div className="mt-4 px-3 py-2 rounded-lg border border-[rgba(44,111,116,0.20)] bg-[rgba(9,9,11,0.60)] flex items-start gap-2">
-            <span className="text-[10px] text-zinc-600 leading-relaxed text-left">
-              Tip: Long-press anywhere on the map to drop a pin instantly.
-            </span>
-            <button
-              onClick={dismissHint}
-              className="text-zinc-700 hover:text-zinc-500 shrink-0 mt-0.5"
-              aria-label="Dismiss hint"
+        <div className="flex flex-col items-center px-5 py-5 text-center">
+          {/* Icon */}
+          <div className="w-14 h-14 rounded-2xl bg-[rgba(31,90,92,0.12)] border border-[rgba(44,111,116,0.20)] flex items-center justify-center mb-4">
+            <svg
+              width="28"
+              height="28"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="rgba(44,111,116,0.7)"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+              <circle cx="12" cy="9" r="2.5" />
+            </svg>
           </div>
-        )}
+
+          <h2 className="text-[14px] font-semibold text-zinc-200 mb-1">This Place Through Time</h2>
+          <p className="text-[12px] text-zinc-500 leading-relaxed mb-5 max-w-[240px]">
+            Drop a pin anywhere on the map — or select a place — to explore what was here across deep
+            time and human history.
+          </p>
+
+          {/* Primary CTA */}
+          <button
+            onClick={() => { dismissHint(); onActivateDropPin(); }}
+            className={[
+              "px-5 py-2.5 rounded-xl text-[12px] font-semibold border transition-all duration-150",
+              dropPinMode
+                ? "bg-[rgba(44,111,116,0.25)] border-[rgba(44,111,116,0.60)] text-[#89CDD1]"
+                : "bg-[rgba(31,90,92,0.18)] border-[rgba(44,111,116,0.40)] text-[#89CDD1] hover:bg-[rgba(31,90,92,0.28)]",
+            ].join(" ")}
+          >
+            {dropPinMode ? "Tap map to place pin…" : "Drop Pin"}
+          </button>
+
+          {/* Onboarding hint */}
+          {!hintDismissed && (
+            <div className="mt-4 px-3 py-2 rounded-lg border border-[rgba(44,111,116,0.20)] bg-[rgba(9,9,11,0.60)] flex items-start gap-2">
+              <span className="text-[10px] text-zinc-600 leading-relaxed text-left">
+                Tip: Long-press anywhere on the map to drop a pin instantly.
+              </span>
+              <button
+                onClick={dismissHint}
+                className="text-zinc-700 hover:text-zinc-500 shrink-0 mt-0.5"
+                aria-label="Dismiss hint"
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -168,6 +173,9 @@ export default function ThisPlacePanel({
 
   return (
     <div className="flex flex-col">
+      {/* ── Wordmark ── */}
+      <Wordmark />
+
       {/* ── Place header ── */}
       <div className="px-4 pt-3 pb-2 border-b border-[rgba(255,255,255,0.05)]">
         <div className="flex items-start justify-between gap-2">
@@ -257,6 +265,24 @@ export default function ThisPlacePanel({
         paleoData={paleoData}
         onFlyToPlace={onFlyToPlace}
       />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Wordmark — always sits at the top of the panel, very low profile
+// ---------------------------------------------------------------------------
+
+function Wordmark() {
+  return (
+    <div className="px-4 pt-3 pb-1 flex items-baseline gap-1.5">
+      <span className="text-[9px] font-semibold uppercase tracking-[0.24em] text-zinc-700">
+        Substrata
+      </span>
+      <span className="text-zinc-800 text-[9px]">·</span>
+      <span className="text-[9px] tracking-wide text-zinc-700">
+        Explore layers of time
+      </span>
     </div>
   );
 }
