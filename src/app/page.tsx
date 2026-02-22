@@ -4,11 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DesktopLayout from "@/components/layouts/DesktopLayout";
 import MobileLayout from "@/components/layouts/MobileLayout";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useSavedPlaces } from "@/hooks/useSavedPlaces";
 import type { Era, PlaceCard, PlaceKind, PlaceSource } from "@/domain/placeCard";
 import type { MapTheme } from "@/components/Map";
 import { scoreCard } from "@/domain/rank";
 import { dedupe } from "@/domain/dedupe";
 import { eraFromMa } from "@/domain/time";
+import { seaLevelAtMa } from "@/domain/lgm";
+import { haptic } from "@/domain/haptics";
 import type { ReconstructionResult } from "@/app/api/reconstruct/route";
 
 // ---------------------------------------------------------------------------
@@ -55,8 +58,33 @@ export default function Home() {
   const coastlineFetchRef = useRef<AbortController | null>(null);
   const lastCoastlineMaRef = useRef<number>(0);
 
+  // --- My Finds ---
+  const { saves: savedPlaces, save: savePlace, unsave: unsavePlace } = useSavedPlaces();
+
   // --- Responsive layout ---
   const isMobile = useMediaQuery("(max-width: 767px)");
+
+  // --- Restore state from URL params (share links) ---
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const lat = parseFloat(params.get("lat") ?? "");
+    const lng = parseFloat(params.get("lng") ?? "");
+    const maParam = parseFloat(params.get("ma") ?? "");
+    const seaParam = params.get("sea");
+    const paleoParam = params.get("paleo") === "1";
+    const boostParam = params.get("boost") === "1";
+
+    if (!isNaN(lat) && !isNaN(lng)) setCenter([lng, lat]);
+    if (!isNaN(maParam) && maParam > 0) {
+      setMa(maParam);
+      setDeepTimeEnabled(true);
+    }
+    if (seaParam !== null && !isNaN(parseFloat(seaParam))) {
+      setSeaLevelOverride(parseFloat(seaParam));
+    }
+    if (paleoParam) setPaleoEnabled(true);
+    if (boostParam) setOverlayBoost(true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Effective center for search
   const activeCenter = useMemo<[number, number]>(() => mapCenter ?? center, [mapCenter, center]);
@@ -290,6 +318,55 @@ export default function Home() {
     ).length;
   }, [cards, selected]);
 
+  // --- My Finds handlers ---
+  const handleSavePlace = useCallback(
+    (card: PlaceCard) => {
+      haptic(12);
+      savePlace({
+        id: card.id,
+        title: card.title,
+        lat: card.coords.lat,
+        lng: card.coords.lng,
+        era: card.era,
+        ma: deepTimeEnabled ? ma : 0,
+        overlays: {
+          seaLevelMeters: seaLevelOverride ?? (deepTimeEnabled && ma > 0 ? seaLevelAtMa(ma) : null),
+          paleogeography: paleoEnabled,
+        },
+        savedAt: new Date().toISOString(),
+      });
+    },
+    [savePlace, deepTimeEnabled, ma, seaLevelOverride, paleoEnabled]
+  );
+
+  const handleUnsavePlace = useCallback(
+    (id: string) => {
+      haptic(8);
+      unsavePlace(id);
+    },
+    [unsavePlace]
+  );
+
+  const handleRestoreFind = useCallback(
+    (place: import("@/domain/savedPlaces").SavedPlace) => {
+      setCenter([place.lng, place.lat]);
+      if (place.ma > 0) {
+        setMa(place.ma);
+        setDeepTimeEnabled(true);
+      } else {
+        setDeepTimeEnabled(false);
+        setMa(0);
+      }
+      if (place.overlays.seaLevelMeters !== null) {
+        setSeaLevelOverride(place.overlays.seaLevelMeters);
+      }
+      if (place.overlays.paleogeography) {
+        setPaleoEnabled(true);
+      }
+    },
+    []
+  );
+
   // --- Layout props (shared between desktop and mobile) ---
   const layoutProps = {
     query,
@@ -332,6 +409,10 @@ export default function Home() {
     onMapThemeChange: setMapTheme,
     nearbyFossilCount,
     onSurpriseMe: handleSurpriseMe,
+    savedPlaces,
+    onSavePlace: handleSavePlace,
+    onUnsavePlace: handleUnsavePlace,
+    onRestoreFind: handleRestoreFind,
   };
 
   return isMobile ? (
