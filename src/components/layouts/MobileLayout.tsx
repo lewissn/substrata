@@ -67,7 +67,8 @@ export default function MobileLayout(props: LayoutProps) {
     nearbyFossilCount, onSurpriseMe,
     savedPlaces, onSavePlace, onUnsavePlace, onRestoreFind, onViewOnMap,
     activePlace, dropPinMode, droppedPin,
-    onToggleDropPinMode, onDropPin, onClearPlace, onSetTimeStop, onFlyToPlace,
+    onToggleDropPinMode, onDropPin, onClearPlace,     onSetTimeStop, onFlyToPlace,
+    onTryThisPreset, tryThisAppliedStopKey, onClearTryThisApplied,
   } = props;
 
   // Restore last active sheet from localStorage; default "place" only on first load
@@ -259,6 +260,9 @@ export default function MobileLayout(props: LayoutProps) {
               onClearPlace={onClearPlace}
               onSetTimeStop={onSetTimeStop}
               onFlyToPlace={handleFlyToPlace}
+              onTryThisPreset={onTryThisPreset}
+              tryThisAppliedStopKey={tryThisAppliedStopKey}
+              onClearTryThisApplied={onClearTryThisApplied}
             />
           </div>
           <div
