@@ -2,7 +2,10 @@
 // Place Narrative Engine
 // Generates location-aware narratives for each time stop using a 4-layer
 // classification pipeline: paleolatitude → sea/land → biome → narrative.
+// LGM: ice narrative only when point is inside published ice extent mask.
 // ---------------------------------------------------------------------------
+
+import { isPointInLGMIce } from "./lgm";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -175,6 +178,48 @@ export function generatePlaceNarrative(params: GenerateParams): PlaceNarrative {
   const usedPaleoLat = paleoLat != null;
   const effectiveLat = paleoLat ?? lat;
   let band = classifyLatBand(effectiveLat);
+
+  // LGM: ice narrative only when point is inside published ice extent mask (no latitude-based ice inference).
+  if (stopKey === "ka20") {
+    const insideIce = isPointInLGMIce(lat, lng);
+    if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
+      console.debug("LGM ice mask result:", { lat, lng, insideIce });
+    }
+    if (insideIce) {
+      const biome = BIOME_MAP["ka20_ice_land"];
+      const result: PlaceNarrative = {
+        latBand: "temperate",
+        latBandLabel: "Temperate",
+        seaSetting: "land",
+        biome: biome ?? {
+          biomeLabel: "Ice-covered",
+          settingLabel: "Continental Ice Sheet",
+          narrative: "This location lay under LGM ice sheet extent.",
+          bullets: ["Within mapped LGM ice extent.", "Sea level ~120 m lower globally."],
+          wikiPage: "Last_Glacial_Maximum",
+        },
+        confidence: "high",
+        usedPaleoLat: false,
+      };
+      NARRATIVE_CACHE.set(cacheKey, result);
+      return result;
+    }
+    // Outside ice: use band/sea but for subpolar/polar use periglacial (not "Under Ice Sheet").
+    if (band === "subpolar" || band === "polar") {
+      const biome = BIOME_MAP["ka20_periglacial_land"];
+      const result: PlaceNarrative = {
+        latBand: band,
+        latBandLabel: latBandLabel(band),
+        seaSetting: "land",
+        biome: biome ?? getBiomeProfile(stopKey, "temperate", "land"),
+        confidence: "high",
+        usedPaleoLat: false,
+      };
+      NARRATIVE_CACHE.set(cacheKey, result);
+      return result;
+    }
+  }
+
   // Safety clamp: for "now", abs(lat) < 60 → never output taiga/tundra/subpolar unless proven by data
   if (stopKey === "now" && Math.abs(lat) < 60 && (band === "subpolar" || band === "polar")) {
     band = "temperate";
@@ -524,7 +569,32 @@ const BIOME_MAP: Record<string, BiomeProfile> = {
 
   // ===================================================================
   //  20,000 YEARS AGO  (Last Glacial Maximum)
+  //  Ice-covered only when point is inside LGM ice extent mask (see isPointInLGMIce).
   // ===================================================================
+  ka20_ice_land: {
+    biomeLabel: "Ice-covered",
+    settingLabel: "Continental Ice Sheet",
+    narrative: "This location lay under the margin of a major LGM ice sheet. Thickness varied; the ice extended from an interior accumulation zone and sculpted the landscape.",
+    bullets: [
+      "Within the mapped extent of LGM continental ice",
+      "Ice thickness varied with distance from the centre",
+      "Sea level was ~120 m lower globally",
+      "Land would be exposed only after ice retreat",
+    ],
+    wikiPage: "Last_Glacial_Maximum",
+  },
+  ka20_periglacial_land: {
+    biomeLabel: "Periglacial / Tundra Steppe",
+    settingLabel: "Cold Grassland at Ice Margin",
+    narrative: "During the LGM this area lay outside the main ice sheets. Cold, dry conditions supported tundra steppe or periglacial grassland — part of the mammoth steppe biome, with sea level ~120 m lower exposing coastal plains.",
+    bullets: [
+      "Outside the mapped LGM ice sheet extent",
+      "Cold grassland or tundra steppe",
+      "Sea level ~120 m lower — exposed shelves",
+      "Woolly mammoth, horse, bison in many regions",
+    ],
+    wikiPage: "Mammoth_steppe",
+  },
   ka20_equatorial_land: {
     biomeLabel: "Glacial Dry Savanna",
     settingLabel: "Equatorial (Arid Phase)",

@@ -155,7 +155,7 @@ export function resolveHeroVisual(
   landSea: LandSea,
   resolvedImageUrl?: string | null,
 ): Img | VisualPlaceholder {
-  // Modern (Now): Wikipedia / Wikidata / Commons first, then catalog/placeholder
+  // Modern (Now): Wikipedia thumbnail > Wikidata P18 > Commons > placeholder. Never use deep-time biome imagery.
   if (stopKey === "now" && resolvedImageUrl) {
     return { url: resolvedImageUrl, credit: "Wikipedia" };
   }

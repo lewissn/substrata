@@ -30,11 +30,11 @@ export const TRY_THIS_PRESETS: TryThisPreset[] = [
     yearsAgo: 2000,
   },
   {
-    id: "doggerland-20k",
-    label: "Doggerland · 20,000 years ago",
+    id: "doggerland-10k",
+    label: "Doggerland · 10,000 years ago",
     lat: 54.0,
     lng: 3.0,
-    yearsAgo: 20000,
+    yearsAgo: 10000,
   },
   {
     id: "chicxulub-66ma",
