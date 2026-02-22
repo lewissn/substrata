@@ -373,3 +373,62 @@ export const DISCOVER_ENTRIES: DiscoverEntry[] = [
     imageCredit: "Wikimedia Commons / Parker & Coward (1888, public domain)",
   },
 ];
+
+// ---------------------------------------------------------------------------
+// Archive (generated or legacy) — same UI as Discover; types inlined so build
+// never depends on archiveArticles.ts / archiveCatalog / archiveTypes / generated JSON.
+// ---------------------------------------------------------------------------
+
+export type ArchiveTopicKind =
+  | "period"
+  | "event"
+  | "extinction"
+  | "civilisation"
+  | "impact"
+  | "ice_age"
+  | "tectonics"
+  | "life";
+
+export type ArchiveArticle = {
+  id: string;
+  title: string;
+  kind: ArchiveTopicKind;
+  time?: { label?: string; maStart?: number; maEnd?: number; yearsAgo?: number };
+  hero: { url: string; credit?: string; sourceUrl?: string };
+  deck: string;
+  sections: Array<{ heading: string; body: string }>;
+  sources: Array<{ label: string; url: string }>;
+  geo?: { lat: number; lng: number; zoom?: number };
+  relatedIds: string[];
+  updatedAt: string;
+};
+
+function legacyToArticle(e: DiscoverEntry): ArchiveArticle {
+  return {
+    id: e.id,
+    title: e.title,
+    kind: (e.tags.includes("life") ? "life" : e.tags.includes("extinction") ? "extinction" : e.tags.includes("eruption") ? "event" : e.tags.includes("ice") ? "ice_age" : e.tags.includes("tectonics") ? "tectonics" : "event") as ArchiveTopicKind,
+    time: e.ma != null ? { label: e.era, maStart: e.ma } : e.year != null ? { label: String(e.year), yearsAgo: e.year > 0 ? 2025 - e.year : 2025 + Math.abs(e.year) } : { label: e.era },
+    hero: { url: e.image, credit: e.imageCredit },
+    deck: e.subtitle ?? e.description.split("\n\n")[0].slice(0, 120),
+    sections: e.description.split("\n\n").filter(Boolean).map((body) => ({ heading: "Overview", body })),
+    sources: [{ label: "Wikipedia", url: `https://en.wikipedia.org/wiki/${e.title.replace(/ /g, "_")}` }],
+    geo: e.lat != null && e.lng != null ? { lat: e.lat, lng: e.lng } : undefined,
+    relatedIds: DISCOVER_ENTRIES.filter((x) => x.id !== e.id && x.tags.some((t) => e.tags.includes(t))).map((x) => x.id).slice(0, 5),
+    updatedAt: new Date().toISOString().slice(0, 10),
+  };
+}
+
+/** Archive entries: legacy discover list (no build-time dependency on generated JSON). */
+export const ARCHIVE_ARTICLES: ArchiveArticle[] = DISCOVER_ENTRIES.map(legacyToArticle);
+
+export const ARCHIVE_KIND_LABELS: Record<string, string> = {
+  period: "Periods",
+  event: "Events",
+  extinction: "Extinctions",
+  civilisation: "Civilisations",
+  impact: "Impacts",
+  ice_age: "Ice & Climate",
+  tectonics: "Tectonics",
+  life: "Life & Evolution",
+};
