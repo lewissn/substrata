@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "build:archive": "npx tsx scripts/build-archive.ts"
   },
   "dependencies": {
     "mapbox-gl": "^3.18.1",
